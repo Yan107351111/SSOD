@@ -6,8 +6,9 @@ Created on Sat Apr 25 18:28:55 2020
 """
 import cv2
 import os
-import webvtt
 import sys
+from tqdm import tqdm
+import webvtt
 from word_forms.word_forms import get_word_forms
 
 def time2secs(string):
@@ -90,7 +91,8 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
     timeDict = dict()
     # List the subtitle files
     vttFiles = [i for i in os.listdir(path) if i[-3:] == 'vtt']
-    for vttFile in vttFiles:
+    print('Searching subtitles...')
+    for vttFile in tqdm(vttFiles):
         # Go over each subtitle file and list the time stamps with at least
         # one of the searched words.
         found = False
@@ -115,9 +117,9 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
                     timeDict[vttFile].append((time_, [null_class,]))
                 else:
                     timeDict[vttFile] = [(time_, [null_class,]),]
-
+    print('Searching videos...')
     # extract the frames according to the found words and tag them.
-    for file in list(timeDict):
+    for file in tqdm(list(timeDict)):
         time_list  = timeDict[file]
         time_list.reverse()
         video_file = file[:-7]+'.mp4'
