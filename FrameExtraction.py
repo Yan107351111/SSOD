@@ -4,10 +4,11 @@ Created on Sat Apr 25 18:28:55 2020
 
 @author: yan10
 """
-
+import cv2
 import os
 import webvtt
-import cv2
+import sys
+from word_forms.word_forms import get_word_forms
 
 def time2secs(string):
     '''
@@ -23,20 +24,34 @@ def time2secs(string):
     '''
     return sum([60**(2-ii)*float(i) for ii, i in enumerate(string.split(':'))])
 
+def forms2list(dict_):
+    list_ = []
+    for key_ in list(dict_):
+        list_ += list(dict_[key_])
+    return list(set(list_))
+
 def listIntersection(lst0, lst1):
     '''
     Find the intersection of list lst0 and lst1.
     -------
     params:
     -------
-    lst0:  list.
-    lst1:  another list.
+    lst0:  list of key strings.
+    lst1:  string.
     -------
     return:
     -------
     list of values contained in both lists.
     '''
-    return [value for value in lst0 if value in lst1]
+    values = []
+    for value in lst0:
+        sub_values = forms2list(get_word_forms(value))
+        
+        for sub_value in sub_values:
+            if sub_value in lst1:
+                values.append(value)
+                break
+    return values
 
 def stringSplit(string, delimiter, *args):
     '''
@@ -81,7 +96,7 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
         found = False
         for caption in webvtt.read(os.path.join(path, vttFile)):
             string_list = stringSplit(caption.text, ' ', ',', '\n', '.')
-            intrs = listIntersection(string_list, search_words)
+            intrs = listIntersection(search_words, caption.text.lower())
             if intrs:
                 found = True
                 start = time2secs(caption.start)
@@ -123,16 +138,34 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
                 else: break 
             ret, frame = video.read()
 
-if __name__ == "__main__"    :
-    path = 'example'
-    search_words = ['book', 'Book','books', 'Books',
-                    'pillow', 'Pillow', 'pillows', 'Pillows',
-                    'leaf','Leaf', 'leaves', 'Leaves']
-    out_dir = 'frames'
+if __name__ == "__maim__"    :
+    # path = 'example'
+    # search_words = ['book', 'Book','books', 'Books',
+    #                 'pillow', 'Pillow', 'pillows', 'Pillows',
+    #                 'leaf','Leaf', 'leaves', 'Leaves']
+    # out_dir = 'frames'
+    
+    assert len(sys.argv)>=3, AssertionError('paths to source and desination required')
+    path         = sys.argv[1]
+    out_dir      = sys.argv[2]
+    search_words = sys.argv[3]
+    if len(sys.argv) == 3:
+        search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
+                        'gun', 'horse', 'pan', 'plate',
+                        'scissors', 'tire']
+    else:
+        search_words = []
+        for i in range(3, len(sys.argv)):
+            search_words.append(sys.argv[i])
+            
     
     extractFrames(path, out_dir, search_words)
     
-    
+from word_forms.word_forms import get_word_forms
+search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
+                'gun', 'horse', 'pan', 'plate',
+                'scissors', 'tire']
+print(forms2list(get_word_forms(search_words[0])))
     
     
     
