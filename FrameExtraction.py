@@ -150,7 +150,6 @@ if __name__ == "__main__"    :
     assert len(sys.argv)>=3, AssertionError('paths to source and desination required')
     path         = sys.argv[1]
     out_dir      = sys.argv[2]
-    search_words = sys.argv[3]
     if len(sys.argv) == 3:
         search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
                         'gun', 'horse', 'pan', 'plate',
