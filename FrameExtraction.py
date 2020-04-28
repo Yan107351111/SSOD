@@ -133,7 +133,7 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
             frameNum+=1
             if time_>=next_time:
                 for word in words:
-                    fname = word+file[:-7]+f'_{round(time_)}'+'.png'
+                    fname = word+'_'+file[:-7]+f'_{round(time_)}'+'.png'
                     cv2.imwrite(os.path.join(out_dir, fname), frame)
                 if time_list:
                     next_time, words = time_list.pop()
