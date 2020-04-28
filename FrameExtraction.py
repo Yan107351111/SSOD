@@ -138,7 +138,7 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
                 else: break 
             ret, frame = video.read()
 
-if __name__ == "__maim__"    :
+if __name__ == "__main__"    :
     # path = 'example'
     # search_words = ['book', 'Book','books', 'Books',
     #                 'pillow', 'Pillow', 'pillows', 'Pillows',
@@ -161,11 +161,6 @@ if __name__ == "__maim__"    :
     
     extractFrames(path, out_dir, search_words)
     
-from word_forms.word_forms import get_word_forms
-search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
-                'gun', 'horse', 'pan', 'plate',
-                'scissors', 'tire']
-print(forms2list(get_word_forms(search_words[0])))
     
     
     
