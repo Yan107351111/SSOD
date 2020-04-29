@@ -110,26 +110,24 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
                     end   = time2secs(caption.end)
                     time_ = (start+end)/2
                     if vttFile in list(timeDict):
+                        timeDict[vttFile].append((time_, intrs))
+                    else:
                         processed = True
                         if vttFile in target_list or not target_list:
                             processed = False
-                        timeDict[vttFile].append(processed)
-                        timeDict[vttFile].append((time_, intrs))
-                    else:
-                        timeDict[vttFile] = [(time_, intrs),]
+                        timeDict[vttFile] = [processed, (time_, intrs),]
             if not found:
                 for caption in webvtt.read(os.path.join(path, vttFile)):
                     start = time2secs(caption.start)
                     end   = time2secs(caption.end)
                     time_ = (start+end)/2
                     if vttFile in list(timeDict):
+                        timeDict[vttFile].append((time_, [null_class,]))
+                    else:
                         processed = True
                         if vttFile in target_list or not target_list:
                             processed = False
-                        timeDict[vttFile].append(processed)
-                        timeDict[vttFile].append((time_, [null_class,]))
-                    else:
-                        timeDict[vttFile] = [(time_, [null_class,]),]
+                        timeDict[vttFile] = [processed, (time_, [null_class,]),]
         pickle.dump(timeDict, open(checkpoint, "wb"))
     
     print('Searching videos...')
