@@ -74,7 +74,7 @@ def stringSplit(string, delimiter, *args):
         string = string.replace(arg, delimiter)
     return string.split(' ')
 
-def extractFrames(in_dir, out_dir, search_words,
+def extractFrames(in_dir, out_dir, search_words, target_list = []
                   checkpoint = 'extract_checkpoint.p', null_class = 'negative'):
     '''
     Get the frames coresponding to the subtitles containing one of the 
@@ -110,7 +110,10 @@ def extractFrames(in_dir, out_dir, search_words,
                     end   = time2secs(caption.end)
                     time_ = (start+end)/2
                     if vttFile in list(timeDict):
-                        timeDict[vttFile].append(False)
+                        processed = True
+                        if vttFile in target_list or not target_list:
+                            processed = False
+                        timeDict[vttFile].append(processed)
                         timeDict[vttFile].append((time_, intrs))
                     else:
                         timeDict[vttFile] = [(time_, intrs),]
@@ -120,7 +123,10 @@ def extractFrames(in_dir, out_dir, search_words,
                     end   = time2secs(caption.end)
                     time_ = (start+end)/2
                     if vttFile in list(timeDict):
-                        timeDict[vttFile].append(False)
+                        processed = True
+                        if vttFile in target_list or not target_list:
+                            processed = False
+                        timeDict[vttFile].append(processed)
                         timeDict[vttFile].append((time_, [null_class,]))
                     else:
                         timeDict[vttFile] = [(time_, [null_class,]),]
@@ -163,16 +169,24 @@ if __name__ == "__main__"    :
     assert len(sys.argv)>=3, AssertionError('paths to source and desination required')
     path         = sys.argv[1]
     out_dir      = sys.argv[2]
-    if len(sys.argv) == 3:
+    if len(sys.argv) < 4:
         search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
                         'gun', 'horse', 'pan', 'plate',
                         'scissors', 'tire']
     else:
         search_words = []
-        for i in range(3, len(sys.argv)):
+        for i in range(4, len(sys.argv)):
             search_words.append(sys.argv[i])
-    
-    extractFrames(path, out_dir, search_words)
+    target_list = []
+    if sys.argv>=3:
+        t = open(sys.argv[3], 'r')
+        line = t.readline()
+        while line:
+            target_list.append(line[:-1])
+            print(f'registered target {line}')
+            line = t.readline()
+        t.close()
+    extractFrames(path, out_dir, search_words, target_list = target_list)
     
     
     
