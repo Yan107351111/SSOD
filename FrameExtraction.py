@@ -91,7 +91,7 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
     None
     '''
     if checkpoint in os.listdir():
-        timeDict = pickel.load(checkpoint, "rb"))
+        timeDict = pickel.load(checkpoint, "rb")
     else:
         timeDict = dict()
         # List the subtitle files
