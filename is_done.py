@@ -7,15 +7,16 @@ Created on Wed Apr 29 07:41:30 2020
 
 import os
 import sys
+from tqdm import tqdm
 
 if __name__ == '__main__':
     source = sys.argv[1]
     destination = sys.argv[2]
-    videos = [i for i in os.listdir(source) if if i[-3:]=='mp4']
+    videos = [i for i in os.listdir(source) if i[-3:]=='mp4']
     images = [i for i in os.listdir(destination) if i[-3:]=='png']
     combined_destination = ''
     unaccounted = []
-    for i in images:
+    for i in tqdm(images):
         combined_destination += i+' '
     for video in videos:
         if video in combined_destination:
