@@ -166,10 +166,10 @@ if __name__ == "__main__"    :
     #                 'leaf','Leaf', 'leaves', 'Leaves']
     # out_dir = 'frames'
     
-    assert len(sys.argv)>=3, AssertionError('paths to source and desination required')
+    assert len(sys.argv) >= 3, AssertionError('paths to source and desination required')
     path         = sys.argv[1]
     out_dir      = sys.argv[2]
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 5:
         search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
                         'gun', 'horse', 'pan', 'plate',
                         'scissors', 'tire']
@@ -178,7 +178,7 @@ if __name__ == "__main__"    :
         for i in range(4, len(sys.argv)):
             search_words.append(sys.argv[i])
     target_list = []
-    if len(sys.argv)>=3:
+    if len(sys.argv) >= 4:
         t = open(sys.argv[3], 'r')
         line = t.readline()
         while line:
