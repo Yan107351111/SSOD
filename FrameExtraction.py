@@ -74,7 +74,7 @@ def stringSplit(string, delimiter, *args):
         string = string.replace(arg, delimiter)
     return string.split(' ')
 
-def extractFrames(in_dir, out_dir, search_words, target_list = []
+def extractFrames(in_dir, out_dir, search_words, target_list = [],
                   checkpoint = 'extract_checkpoint.p', null_class = 'negative'):
     '''
     Get the frames coresponding to the subtitles containing one of the 
