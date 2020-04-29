@@ -6,6 +6,7 @@ Created on Sat Apr 25 18:28:55 2020
 """
 import cv2
 import os
+import pickle
 import sys
 from tqdm import tqdm
 import webvtt
@@ -73,7 +74,8 @@ def stringSplit(string, delimiter, *args):
         string = string.replace(arg, delimiter)
     return string.split(' ')
 
-def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
+def extractFrames(in_dir, out_dir, search_words,
+                  checkpoint = 'extract_checkpoint.p', null_class = 'negative'):
     '''
     Get the frames coresponding to the subtitles containing one of the 
     searched words. 
@@ -88,39 +90,50 @@ def extractFrames(in_dir, out_dir, search_words, null_class = 'negative'):
     -------
     None
     '''
-    timeDict = dict()
-    # List the subtitle files
-    vttFiles = [i for i in os.listdir(path) if i[-3:] == 'vtt']
-    print('Searching subtitles...')
-    for vttFile in tqdm(vttFiles):
-        # Go over each subtitle file and list the time stamps with at least
-        # one of the searched words.
-        found = False
-        for caption in webvtt.read(os.path.join(path, vttFile)):
-            string_list = stringSplit(caption.text, ' ', ',', '\n', '.')
-            intrs = listIntersection(search_words, caption.text.lower())
-            if intrs:
-                found = True
-                start = time2secs(caption.start)
-                end   = time2secs(caption.end)
-                time_ = (start+end)/2
-                if vttFile in list(timeDict):
-                    timeDict[vttFile].append((time_, intrs))
-                else:
-                    timeDict[vttFile] = [(time_, intrs),]
-        if not found:
+    if checkpoint in os.listdir():
+        timeDict = pickel.load(checkpoint, "rb"))
+    else:
+        timeDict = dict()
+        # List the subtitle files
+        vttFiles = [i for i in os.listdir(path) if i[-3:] == 'vtt']
+        print('Searching subtitles...')
+        for vttFile in tqdm(vttFiles):
+            # Go over each subtitle file and list the time stamps with at least
+            # one of the searched words.
+            found = False
             for caption in webvtt.read(os.path.join(path, vttFile)):
-                start = time2secs(caption.start)
-                end   = time2secs(caption.end)
-                time_ = (start+end)/2
-                if vttFile in list(timeDict):
-                    timeDict[vttFile].append((time_, [null_class,]))
-                else:
-                    timeDict[vttFile] = [(time_, [null_class,]),]
+                string_list = stringSplit(caption.text, ' ', ',', '\n', '.')
+                intrs = listIntersection(search_words, caption.text.lower())
+                if intrs:
+                    found = True
+                    start = time2secs(caption.start)
+                    end   = time2secs(caption.end)
+                    time_ = (start+end)/2
+                    if vttFile in list(timeDict):
+                        timeDict[vttFile].append(False)
+                        timeDict[vttFile].append((time_, intrs))
+                    else:
+                        timeDict[vttFile] = [(time_, intrs),]
+            if not found:
+                for caption in webvtt.read(os.path.join(path, vttFile)):
+                    start = time2secs(caption.start)
+                    end   = time2secs(caption.end)
+                    time_ = (start+end)/2
+                    if vttFile in list(timeDict):
+                        timeDict[vttFile].append(False)
+                        timeDict[vttFile].append((time_, [null_class,]))
+                    else:
+                        timeDict[vttFile] = [(time_, [null_class,]),]
+        pickle.dump(timeDict, open(checkpoint, "wb"))
+    
     print('Searching videos...')
     # extract the frames according to the found words and tag them.
     for file in tqdm(list(timeDict)):
-        time_list  = timeDict[file]
+        if timeDict[file][0]:
+            continue
+        timeDict[file][0] = True
+        pickle.dump(timeDict, open(checkpoint, "wb"))
+        time_list  = timeDict[file][1:]
         time_list.reverse()
         video_file = file[:-7]+'.mp4'
         video      = cv2.VideoCapture(os.path.join(path, video_file))
@@ -158,7 +171,6 @@ if __name__ == "__main__"    :
         search_words = []
         for i in range(3, len(sys.argv)):
             search_words.append(sys.argv[i])
-            
     
     extractFrames(path, out_dir, search_words)
     
