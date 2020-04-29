@@ -178,7 +178,7 @@ if __name__ == "__main__"    :
         for i in range(4, len(sys.argv)):
             search_words.append(sys.argv[i])
     target_list = []
-    if sys.argv>=3:
+    if len(sys.argv)>=3:
         t = open(sys.argv[3], 'r')
         line = t.readline()
         while line:
