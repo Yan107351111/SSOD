@@ -32,7 +32,7 @@ def forms2list(dict_):
         list_ += list(dict_[key_])
     return list(set(list_))
 
-def listIntersection(lst0, lst1):
+def listIntersection(lst0, lst1, expand = False):
     '''
     Find the intersection of list lst0 and lst1.
     -------
@@ -45,15 +45,19 @@ def listIntersection(lst0, lst1):
     -------
     list of values contained in both lists.
     '''
-    values = []
-    for value in lst0:
-        sub_values = forms2list(get_word_forms(value))
-        
-        for sub_value in sub_values:
-            if sub_value in lst1:
-                values.append(value)
-                break
-    return values
+    if expand:
+        values = []
+        for value in lst0:
+            sub_values = forms2list(get_word_forms(value))
+            
+            for sub_value in sub_values:
+                if sub_value in lst1:
+                    values.append(value)
+                    break
+        return values
+    else:
+        return [value for value in lst0 if value in lst1]
+
 
 def stringSplit(string, delimiter, *args):
     '''
@@ -91,7 +95,7 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
     None
     '''
     if checkpoint in os.listdir():
-        timeDict = pickel.load(checkpoint, "rb")
+        timeDict = pickle.load(checkpoint, "rb")
     else:
         timeDict = dict()
         # List the subtitle files
@@ -102,7 +106,6 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
             # one of the searched words.
             found = False
             for caption in webvtt.read(os.path.join(path, vttFile)):
-                string_list = stringSplit(caption.text, ' ', ',', '\n', '.')
                 intrs = listIntersection(search_words, caption.text.lower())
                 if intrs:
                     found = True
