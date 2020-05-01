@@ -25,7 +25,7 @@ IMSIZE = 224
 
 
 image_names = os.listdir(DATA_PATH)
-ss = conda.ximgproc.segmentation.createSelectiveSearchSegmentation()
+ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
 try:
     os.mkdir(OUT_PATH)
 except:pass
