@@ -25,7 +25,7 @@ IMSIZE = 224
 
 
 image_names = os.listdir(DATA_PATH)
-ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
+ss = conda.ximgproc.segmentation.createSelectiveSearchSegmentation()
 try:
     os.mkdir(OUT_PATH)
 except:pass
@@ -51,7 +51,11 @@ for image_name in image_names:
             crop = image[y:y+h, x:x+w]
             
             cv2.imwrite(
-                os.path.join(OUT_PATH, label),
+                os.path.join(
+                    OUT_PATH,
+                    label,
+                    f'{image_name[:-4]}_{ims:04}.png',
+                    ),
                 cv2.resize(crop, (IMSIZE, IMSIZE))
                 )
             
