@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import os
 import sys
+from tqdm import tqdm
 
 ### ARGS ###
 DATA_PATH = sys.argv[1]#'..\\..\\data\\example'
@@ -24,17 +25,19 @@ IMSIZE = 224
 ############
 
 
-image_names = os.listdir(DATA_PATH)
+image_names = [image_name
+               for image_name in os.listdir(DATA_PATH)
+               if not image_name.startswith('neg')]
 ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
 try:
     os.mkdir(OUT_PATH)
 except:pass
-for label in LABELS+['neg',]:
+for label in LABELS:
     try:
         os.mkdir(os.path.join(OUT_PATH, label))
     except:pass 
-for image_name in image_names:
-    for label in LABELS+['neg',]:
+for image_name in tqdm(image_names):
+    for label in LABELS:
         if image_name.startswith(label):
             break
     # process image for reg props
