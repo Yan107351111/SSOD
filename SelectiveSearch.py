@@ -11,6 +11,7 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 import os
 import sys
 from tqdm import tqdm
+import time
 
 ### ARGS ###
 DATA_PATH = sys.argv[1]#'..\\..\\data\\example'
@@ -36,7 +37,15 @@ for label in LABELS:
     try:
         os.mkdir(os.path.join(OUT_PATH, label))
     except:pass 
-for image_name in tqdm(image_names):
+count_total = len(image_names)
+count       = 0
+start_time  = time.time()
+for image_name in image_names:
+    count+=1
+    if count%500==0:
+        print(f'runing time:{time.time()-start_time}')
+        print(f'processed: {count}/{count_total}')
+        print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
     for label in LABELS:
         if image_name.startswith(label):
             break
