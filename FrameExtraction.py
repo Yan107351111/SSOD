@@ -8,6 +8,7 @@ import cv2
 import os
 import pickle
 import sys
+import time
 from tqdm import tqdm
 import webvtt
 from word_forms.word_forms import get_word_forms
@@ -101,7 +102,7 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
         # List the subtitle files
         vttFiles = [i for i in os.listdir(path) if i[-3:] == 'vtt']
         print('Searching subtitles...')
-        for vttFile in tqdm(vttFiles):
+        for vttFile in vttFiles:
             # Go over each subtitle file and list the time stamps with at least
             # one of the searched words.
             found = False
@@ -135,7 +136,18 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
     
     print('Searching videos...')
     # extract the frames according to the found words and tag them.
-    for file in tqdm(list(timeDict)):
+    count_total = len(list(timeDict))
+    count       = 0
+    start_time  = time.time()
+    for file in list(timeDict):
+        count+=1
+        print('\n')
+        print('### FRAME EXTRACTION ###')
+        print(f'runing time:{time.time()-start_time}')
+        print(f'processed: {count}/{count_total}')
+        print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
+        print('\n')
+
         if timeDict[file][0]:
             continue
         timeDict[file][0] = True
