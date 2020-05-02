@@ -141,12 +141,13 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
     start_time  = time.time()
     for file in list(timeDict):
         count+=1
-        print('\n')
-        print('### FRAME EXTRACTION ###')
-        print(f'runing time:{time.time()-start_time}')
-        print(f'processed: {count}/{count_total}')
-        print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
-        print('\n')
+        if count%500==0:
+            print('\n')
+            print('### FRAME EXTRACTION ###')
+            print(f'runing time:{time.time()-start_time}')
+            print(f'processed: {count}/{count_total}')
+            print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
+            print('\n')
 
         if timeDict[file][0]:
             continue
