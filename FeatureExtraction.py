@@ -36,4 +36,6 @@ if __name__ == '__main__':
         shuffle=True, num_workers=2)
     
     inputs, labels = next(iter(train_dataloader))
+    for label in labels:
+        print(label)
 
