@@ -12,6 +12,7 @@ import torchvision
 import torchvision.transforms as T
 
 if __name__ == '__main__':
+    torch.manual_seed(0)
     data_path = sys.argv[1] #'..\data\region_proposals'
     if len(sys.argv)>2:
         batch_size = sys.argv[2]
