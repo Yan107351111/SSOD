@@ -9,6 +9,7 @@ import pretrainedmodels
 import sys
 import torch
 import torchvision
+import torchvision.transforms as T
 
 if __name__ == '__main__':
     data_path = sys.argv[1] #'..\data\region_proposals'
@@ -21,8 +22,13 @@ if __name__ == '__main__':
         num_classes=1000, pretrained='imagenet')
     model.eval()
     
+    transform = T.Compose(
+        [T.ToTensor(),
+         T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
     train_dataset = torchvision.datasets.ImageFolder(
         root      = data_path,
+        transform = transform,
     )
     
     train_dataloader = torch.utils.data.DataLoader(
