@@ -138,6 +138,7 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
     # extract the frames according to the found words and tag them.
     count_total = len(list(timeDict))
     count       = 0
+    processed   = 1
     start_time  = time.time()
     for file in list(timeDict):
         count+=1
@@ -146,11 +147,12 @@ def extractFrames(in_dir, out_dir, search_words, target_list = [],
             print('### FRAME EXTRACTION ###')
             print(f'runing time:{time.time()-start_time}')
             print(f'processed: {count}/{count_total}')
-            print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
+            print(f'remaining time approximately: {(time.time()-start_time)/processed*(count_total-processed)}')
             print('\n')
 
         if timeDict[file][0]:
             continue
+        processed+=1
         timeDict[file][0] = True
         pickle.dump(timeDict, open(checkpoint, "wb"))
         time_list  = timeDict[file][1:]
