@@ -13,7 +13,7 @@ import sys
 from tqdm import tqdm
 import time
 
-if __name__ = '__main__':
+if __name__ == '__main__':
     
     ### ARGS ###
     DATA_PATH = sys.argv[1]#'..\\..\\data\\example'
