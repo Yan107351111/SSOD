@@ -4,19 +4,87 @@ Created on Sun Apr 26 09:33:57 2020
 
 @author: yan10
 """
-
+import io
+import os
 import pretrainedmodels
 import sys
 import torch
 import torchvision
 import torchvision.transforms as T
 
-if __name__ == '__main__':
-    torch.manual_seed(0)
-    data_path = sys.argv[1] #'..\data\region_proposals'
-    if len(sys.argv)>2:
-        batch_size = sys.argv[2]
-    else: batch_size = 5
+
+class FrameRegionProposalsDataset(Dataset):
+    """Region proposals from video frames dataset."""
+
+    def __init__(self, root_dir, label, transform=None, random_seed):
+        """
+        Args:
+            root_dir (string): Directory with all the image subdirectories.
+            label    (string): The name of the class. also, the name of the
+                directory holding the positive region proposals.
+            transform (callable, optional): transform to be applied on a 
+                sample to get it to the embedded space.
+        """
+        torch.manual_seed(random_seed)
+        self.video_ref   = {}
+        self.video_deref = {}
+        self.all_items   = []
+        video_hash = 0
+        assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
+        # creating positive item list
+        for i in os.listdir(os.path.join(root_dir, label)):
+            self.all_items.append(os.path.join(label, i))
+            vid_name = i.split('_')[1]
+            if vid_name not in list(self.video_ref):
+                self.video_ref[vid_name] = video_hash
+                self.video_deref[video_hash] = vid_name
+                video_hash+=1
+                
+        # addign negative items to the list
+        other_labels = [olabel for olabel in os.path.join(root_dir)
+                        if olabel is not label]
+        neg_labels   = torch.randint(len(other_labels), len(self.all_items))
+        for neg_label in neg_labels:
+            other_label     = other_labels[neg_label]
+            neg_region_ind  = torch.rand(len(regions), (1,))
+            neg_region_name = os.path.join(
+                other_labels[neg_label],
+                os.listdir(os.path.join(root_dir, neg_label))[neg_region_ind])
+            while neg_region_name in self.all_items:
+                neg_label = torch.randint(len(other_labels), (1,))
+                other_label     = other_labels[neg_label]
+                neg_region_ind  = torch.rand(len(regions), (1,))
+                neg_region_name = os.path.join(
+                    other_labels[neg_label],
+                    os.listdir(os.path.join(root_dir, neg_label))[neg_region_ind])
+            self.all_items.append((os.path.join(neg_label, neg_region_name)))
+        
+        self.root_dir  = root_dir
+        self.transform = transform
+        self.label     = label
+
+    def __len__(self):
+        return len(self.all_items)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        img_name = os.path.join(self.root_dir,self.all_items[idx])
+        image    = io.imread(img_name)
+        label    = self.label_ref[self.all_items[idx].split('\\')[0]]
+        video    = self.video_ref[self.all_items[idx].split('_')[1]]
+        box      = self.all_items[idx].split('_')[1]
+
+        if self.transform:
+            features = self.transform(image)
+
+        return features, label, box, video
+
+
+
+
+def get_dataloader(data_path, batch_size,):
     
     model_name = 'inceptionresnetv2'
     model = pretrainedmodels.__dict__[model_name](
@@ -25,8 +93,9 @@ if __name__ == '__main__':
     
     transform = T.Compose(
         [T.ToTensor(),
-         T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
+         T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+         model])
+    
     train_dataset = torchvision.datasets.ImageFolder(
         root      = data_path,
         transform = transform,
@@ -36,7 +105,71 @@ if __name__ == '__main__':
         train_dataset, batch_size=batch_size,
         shuffle=True, num_workers=2)
     
-    inputs, labels = next(iter(train_dataloader))
-    for label in labels:
-        print(label)
+    return train_dataloader
 
+def get_dataset(data_path, batch_size,):
+    
+    model_name = 'inceptionresnetv2'
+    model = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
+    model.eval()
+    
+    transform = T.Compose(
+        [T.ToTensor(),
+         T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+         model])
+    
+    train_dataset = torchvision.datasets.ImageFolder(
+        root      = data_path,
+        transform = transform,
+    )
+    
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=batch_size,
+        shuffle=True, num_workers=2)
+    xs = []
+    ys = []
+    for x, y in train_dataloader:
+        xs.append(model(x))
+        ys.append(torch.tensor(y))
+    
+    train_embedded_dataset = torch.utils.data.TensorDataset(
+        torch.cat(x), torch.cat(y)
+    )
+    return train_embedded_dataset
+
+
+
+if __name__ == '__main__':
+    data_path = sys.argv[1] #'..\data\region_proposals'
+    pass    
+    
+    
+    # inputs, labels = next(iter(train_dataloader))
+    # for label in labels:
+    #     for ll, label in enumerate(train_dataset.classes):
+    #         if ll == train_dataset.class_to_idx: print(label)
+    # print(train_dataset.class_to_idx)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
