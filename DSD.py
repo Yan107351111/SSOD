@@ -165,7 +165,7 @@ def get_graph(bbs, egdes_threshold = 0.5):
         e += N-i-2
     return graph+graph.T
 
-def DSD(graph, V_fraction = 0.1):
+def DSDiscover(graph, V_fraction = 0.1, keys = None):
     '''
     performe DSD on the graph
     params:
@@ -174,6 +174,8 @@ def DSD(graph, V_fraction = 0.1):
         V_fraction: float if [0,1)
                     the minimal number of vertices to include in the dense
                     subgraph.
+        keys:   torch.tensor
+                the keys of the provided vertices.
     return:
         V_tag:  torch.tensor
                 a vector of the vertices in the dense subgraph.
@@ -181,22 +183,48 @@ def DSD(graph, V_fraction = 0.1):
     G = graph.clone()+torch.eye(len(graph)).bool()
     DSn = torch.round(torch.tensor([len(G)*0.1])).int().item()
     V_tag = torch.tensor([])
-    
     while len(V_tag) < DSn:
         v_max = torch.sum(G, dim = 1).argmax().reshape(1)
         neighbor = G[v_max].flatten()
         V_neighbor = torch.arange(len(G))[neighbor]
-        print(torch.sum(neighbor))
         ### TODO: what is the dense subgraph? V_neighbor or only v_max?
-        V_tag = torch.cat((V_tag.to(v_max.dtype), v_max)) 
+        if keys is None:
+            V_tag = torch.cat((V_tag.to(v_max.dtype), v_max)) 
+        else:
+            V_tag = torch.cat((V_tag.to(keys.dtype), keys[v_max])) 
         G[:,neighbor] = 0
         G[neighbor, :] = 0
     return V_tag
 
+def DSD(bbs, frames):
+    '''
+    performe DSD on the provided bounding boxes according to the frames they
+    were taken from.
+    params:
+        bbs:    torch.tensor
+                a Nx4 list of bounding boxes in the format of [x, y, w, h].
+        frames: torch.tensor
+                a N long vector of indicators to the frames the coresponding
+                bounding boxes were taken from.
+    return:
+        DS:     torch.tensor
+                a vector of the indices of the bounding boxed chosen as
+                vertices in the dense subgraphs.
+    '''
+    frame_sets = torch.tensor(list(set(frames.tolist())))
+    indices    = torch.arange(len(frames))
+    DSs        = torch.tensor([])
+    for frame in frame_sets:
+        # fetch the bounding boxed in the frame
+        bbs_frm = bbs[frames==frame]
+        graph = get_graph(bbs_frm)
+        DS  = DSDiscover(graph, keys = indices[frames==frame])
+        DSs = torch.cat((DSs.to(DS.dtype), DS)) 
+    return DSs
+    
 
 if __name__ == '__main__':
     torch.manual_seed(0)
-    # connection_IoU = 0.1
     n = 300
     images = torch.randint(2,(n,1))
     labels = torch.randint(2,(n,))
@@ -216,8 +244,7 @@ if __name__ == '__main__':
         graph = get_graph(bbs_frm)
         # plt.figure()
         # plt.imshow(graph)
-        
-        dsd = DSD(graph)
+        dsd = DSDiscover(graph)
         
         
     
