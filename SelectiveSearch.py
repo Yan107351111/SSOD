@@ -68,7 +68,7 @@ if __name__ == '__main__':
                     os.path.join(
                         OUT_PATH,
                         label,
-                        f'{image_name[:-4]}_{x}_{y}_{w}_{h}_{ims:04}.png',
+                        f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
                         ),
                     cv2.resize(crop, (IMSIZE, IMSIZE))
                     )

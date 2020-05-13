@@ -26,19 +26,19 @@ class FrameRegionProposalsDataset(Dataset):
                 sample to get it to the embedded space.
         """
         torch.manual_seed(random_seed)
-        self.video_ref   = {}
-        self.video_deref = {}
+        self.frame_ref   = {}
+        self.frame_deref = {}
         self.all_items   = []
-        video_hash = 0
+        frame_hash = 0
         assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
         # creating positive item list
         for i in os.listdir(os.path.join(root_dir, label)):
             self.all_items.append(os.path.join(label, i))
-            vid_name = i.split('_')[1]
-            if vid_name not in list(self.video_ref):
-                self.video_ref[vid_name] = video_hash
-                self.video_deref[video_hash] = vid_name
-                video_hash+=1
+            frame_name = i.split(';')[1]
+            if frame_name not in list(self.frame_ref):
+                self.video_ref[frame_name] = frame_hash
+                self.video_deref[frame_hash] = frame_name
+                frame_hash+=1
                 
         # addign negative items to the list
         other_labels = [olabel for olabel in os.path.join(root_dir)
@@ -73,8 +73,8 @@ class FrameRegionProposalsDataset(Dataset):
         img_name = os.path.join(self.root_dir,self.all_items[idx])
         image    = io.imread(img_name)
         label    = self.label_ref[self.all_items[idx].split('\\')[0]]
-        video    = self.video_ref[self.all_items[idx].split('_')[1]]
-        box      = self.all_items[idx].split('_')[1]
+        video    = self.video_ref[self.all_items[idx].split(';')[1]]
+        box      = self.all_items[idx].split(';')[2:6]
 
         if self.transform:
             features = self.transform(image)
