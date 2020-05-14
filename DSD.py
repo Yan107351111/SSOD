@@ -6,9 +6,9 @@ Created on Wed May 13 13:57:14 2020
 """
 
 import torch
-from tqdm import tqdm
-from time import time
-import matplotlib.pyplot as plt
+# from tqdm import tqdm
+# from time import time
+# import matplotlib.pyplot as plt
 
 def get_iou(bb1, bb2):
     """
@@ -221,7 +221,8 @@ def DSD(bbs, frames):
         DS  = DSDiscover(graph, keys = indices[frames==frame])
         DSs = torch.cat((DSs.to(DS.dtype), DS)) 
     return DSs
-    
+ 
+   
 
 if __name__ == '__main__':
     torch.manual_seed(0)
@@ -248,25 +249,3 @@ if __name__ == '__main__':
         
         
     
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
