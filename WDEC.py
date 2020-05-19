@@ -11,8 +11,9 @@ import ptsdae.model as ae
 import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
-from FeatureExtraction import get_dataloader, get_dataset
-
+from FeatureExtraction import get_dataset
+from ptdec.dec import WDEC
+from ptdec.model import train
 
 
 
@@ -23,7 +24,7 @@ cuda         = torch.cuda.is_available()
 batch_size   = 256
 data_path    = ''
 ds_train     = get_dataset(data_path, batch_size)
-ds_val       = 0
+ds_val       = None
 embedded_dim = 1000
 autoencoder  = StackedDenoisingAutoEncoder(
         [embedded_dim, 500, 500, 2000, 10],
@@ -62,7 +63,24 @@ ae.train(
 
 
 
-
+print('WDEC stage.')
+model = WDEC(
+    cluster_number=10,
+    hidden_dimension=10,
+    encoder=autoencoder.encoder
+)
+if cuda:
+    model.cuda()
+dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
+train(
+    dataset=ds_train,
+    model=model,
+    epochs=100,
+    batch_size=256,
+    optimizer=dec_optimizer,
+    stopping_delta=0.000001,
+    cuda=cuda
+)
 
 
 

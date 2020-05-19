@@ -16,8 +16,8 @@ import time
 if __name__ == '__main__':
     
     ### ARGS ###
-    DATA_PATH = sys.argv[1]#'..\\..\\data\\example'
-    OUT_PATH  = sys.argv[2]#'..\\..\\data\\region_proposals'
+    DATA_PATH = '..\\..\\data\\example'
+    OUT_PATH  = '..\\..\\data\\region_proposals'
     ############ defults
     N      = 300 # number of reg props
     SKIP   = 1   # take only SKIP'th proposal

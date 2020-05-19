@@ -77,7 +77,7 @@ class FrameRegionProposalsDataset(dataset):
         image    = io.imread(img_name)
         label    = torch.tensor(1.) if self.all_items[idx].split('\\')[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[self.all_items[idx].split('\\')[1].split(';')[0]])
-        box      = torch.tensor([int(i) for i in self.all_items[idx].split(';')[3:7]])
+        box      = torch.tensor([int(i) for i in self.all_items[idx].split(';')[2:6]])
         if self.transform:
             features = self.transform(image)
         return features, label, box, video
@@ -141,14 +141,16 @@ def get_dataset(data_path, batch_size,):
 
 if __name__ == '__main__':
     data_path = sys.argv[1] #'..\data\region_proposals'
-    pass    
     
+    train_dataloader = get_dataloader()
     
-    # inputs, labels = next(iter(train_dataloader))
-    # for label in labels:
-    #     for ll, label in enumerate(train_dataset.classes):
-    #         if ll == train_dataset.class_to_idx: print(label)
-    # print(train_dataset.class_to_idx)
+    features, labels, boxs, videos = next(iter(train_dataloader))
+    for label in labels:
+        for ll, label in enumerate(train_dataset.classes):
+            if ll == train_dataset.class_to_idx: print(label)
+    print(labels)
+    print(boxs)
+    print(videos)
     
     
     
