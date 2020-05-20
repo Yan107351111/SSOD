@@ -76,7 +76,7 @@ class FrameRegionProposalsDataset(dataset):
         img_name = os.path.join(self.root_dir,self.all_items[idx])
         image    = io.imread(img_name)
         label    = torch.tensor(1.) if self.all_items[idx].split('\\')[0]==self.label else torch.tensor(0.)
-        video    = torch.tensor(self.video_ref[self.all_items[idx].split('\\')[1].split(';')[0]])
+        video    = torch.tensor(self.video_ref[self.all_items[idx].split('\\')[1].split(';')[1]])
         box      = torch.tensor([int(i) for i in self.all_items[idx].split(';')[3:7]])
         if self.transform:
             features = self.transform(image)
