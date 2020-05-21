@@ -11,21 +11,33 @@ import sys
 import torch
 import torchvision
 import torchvision.transforms as T
-from torch.utils.data import dataset
+from torch.utils.data import Dataset
 
 
-class FrameRegionProposalsDataset(dataset):
+class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
 
     def __init__(self, root_dir, label, transform=None, random_seed = 0):
-        """
-        Args:
-            root_dir (string): Directory with all the image subdirectories.
-            label    (string): The name of the class. also, the name of the
-                directory holding the positive region proposals.
-            transform (callable, optional): transform to be applied on a 
-                sample to get it to the embedded space.
-        """
+        '''
+        TODO:
+
+        Parameters
+        ----------
+        root_dir : string
+            Directory with all the image subdirectories.
+        label : string
+            directory holding the positive region proposals.
+        transform : callable, optional
+            transform to be applied on a sample to get it to the
+            embedded space. The default is None.
+        random_seed : int, optional
+            DESCRIPTION. The default is 0.
+
+        Returns
+        -------
+        None.
+
+        '''
         torch.manual_seed(random_seed)
         self.video_ref   = {}
         self.video_deref = {}
@@ -84,6 +96,22 @@ class FrameRegionProposalsDataset(dataset):
 
 
 def get_dataloader(data_path, batch_size,):
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    data_path : TYPE
+        DESCRIPTION.
+    batch_size : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    train_dataloader : TYPE
+        DESCRIPTION.
+
+    '''
     
     model_name = 'inceptionresnetv2'
     model = pretrainedmodels.__dict__[model_name](
@@ -94,12 +122,12 @@ def get_dataloader(data_path, batch_size,):
         [T.ToTensor(),
          T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
          model])
-    
+    print('getting dataset')
     train_dataset = FrameRegionProposalsDataset(
         root      = data_path,
         transform = transform,
     )
-    
+    print('inserting dataset into dataloader')
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=batch_size,
         shuffle=True, num_workers=2)
@@ -107,6 +135,22 @@ def get_dataloader(data_path, batch_size,):
     return train_dataloader
 
 def get_dataset(data_path, batch_size,):
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    data_path : TYPE
+        DESCRIPTION.
+    batch_size : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    train_dataset : TYPE
+        DESCRIPTION.
+
+    '''
     
     model_name = 'inceptionresnetv2'
     model = pretrainedmodels.__dict__[model_name](
@@ -140,14 +184,15 @@ def get_dataset(data_path, batch_size,):
 
 
 if __name__ == '__main__':
-    data_path = sys.argv[1] #'..\data\region_proposals'
-    
-    train_dataloader = get_dataloader()
-    
+    data_path = '..\data\region_proposals'
+    print('getting data loader')
+    train_dataloader = get_dataloader(data_path, 2)
+    print('getting samples')
     features, labels, boxs, videos = next(iter(train_dataloader))
-    for label in labels:
-        for ll, label in enumerate(train_dataset.classes):
-            if ll == train_dataset.class_to_idx: print(label)
+    # for label in labels:
+    #     for ll, label in enumerate(train_dataset.classes):
+    #         if ll == train_dataset.class_to_idx: print(label)
+    print('printing samples')
     print(labels)
     print(boxs)
     print(videos)
