@@ -101,12 +101,17 @@ class FrameRegionProposalsDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        img_name = os.path.join(self.root_dir,self.all_items[idx])
+        print(f'getting item {idx} out of {len(self)}')
+        
+        
+        item = self.all_items[idx]
+        print(f'item = {item}')
+        img_name = os.path.join(self.root_dir,item)
         image    = plt.imread(img_name)
         # image    = image.reshape(1,*image.shape)
-        label    = torch.tensor(1.) if self.all_items[idx].split('\\')[0]==self.label else torch.tensor(0.)
-        video    = torch.tensor(self.video_ref[self.all_items[idx].split('\\')[1].split(';')[1]])
-        box      = torch.tensor([int(i) for i in self.all_items[idx].split(';')[3:7]])
+        label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
+        video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
+        box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
         if self.transform:
             with torch.no_grad():
                 features = self.transform(image)
