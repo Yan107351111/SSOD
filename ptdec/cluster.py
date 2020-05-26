@@ -65,7 +65,7 @@ class WeightedClusterAssignment(nn.Module):
         :param alpha: parameter representing the degrees of freedom in the t-distribution, default 1.0
         :param cluster_centers: clusters centers to initialise, if None then use Xavier uniform
         """
-        super(ClusterAssignment, self).__init__()
+        super(WeightedClusterAssignment, self).__init__()
         self.embedding_dimension = embedding_dimension
         self.cluster_number = cluster_number
         self.alpha = alpha
@@ -79,24 +79,46 @@ class WeightedClusterAssignment(nn.Module):
         else:
             initial_cluster_centers = cluster_centers
         self.cluster_centers = Parameter(initial_cluster_centers)
-        self.cluster_predicted = None
+        # self.cluster_predicted = None
         self.cluster_positive_ratio = None
 
-    def forward(self, batch: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def forward(self, batch: torch.Tensor, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
         """
         Compute the soft assignment for a batch of feature vectors, returning a batch of assignments
         for each cluster.
 
         :param batch: FloatTensor of [batch size, embedding dimension]
-        :param labels: FloatTensor of [batch size, label]
+        :param labels: FloatTensor of size [batch size]
+        :param idx: FloatTensor of size [batch size]
         :return: FloatTensor [batch size, number of clusters]
         """
-        weights = 0.5*(labels==0).float() + (labels==1).float()
+        
         norm_squared = torch.sum((batch.unsqueeze(1) - self.cluster_centers) ** 2, 2)
         numerator = 1.0 / (1.0 + (norm_squared / self.alpha))
         power = float(self.alpha + 1) / 2
-        numerator = numerator**power * weights
+        numerator = numerator**power * self.weights(labels, idx)
         return numerator / torch.sum(numerator, dim=1, keepdim=True)
+    
+    def weights(self, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+        '''
+        :param labels: FloatTensor of size [batch size]
+        :param idx: FloatTensor of size [batch size]
+        :return: FloatTensor [batch size, number of clusters]
+        '''
+        if self.cluster_positive_ratio is None:
+            return None
+        # compute the weights according to the labels.
+        weights = (0.5*(labels==0).float() + (labels==1).float())
+        # only apply to positive ratio clusters.
+        weights *= (self.cluster_positive_ratio[idx])
+        # set "weight" to 1 for all other clusters
+        weights += (self.cluster_positive_ratio[idx]==0).int()
+        return weights
+
+        
+        
+        
+        
 
 
 

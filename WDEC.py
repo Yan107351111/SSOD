@@ -116,7 +116,7 @@ ADAM for optimization with a learning rate of 10−4
 The learning rate is decreased by a factor of 0.6 every 6 epochs
 We train our model for 35 epochs for all objects
 '''
-dec_optimizer = Adam(model.parameters(), lr=1e-4)
+det_optimizer = Adam(model.parameters(), lr=1e-4)
 scheduler = StepLR(dec_optimizer, step_size = 6, gamma = 0.6)
 
 

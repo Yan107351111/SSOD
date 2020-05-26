@@ -10,8 +10,8 @@ import numpy as np
 
 from ptsdae.sdae import StackedDenoisingAutoEncoder
 import ptsdae.model as ae
-from ptdec.dec import DEC
-from ptdec.model import train
+from ptdec.dec import WDEC
+from ptdec.model import predict
 from ptdec.utils import target_distribution, cluster_accuracy
 
 from sklearn.cluster import KMeans
@@ -57,7 +57,7 @@ def train(dataset: torch.utils.data.Dataset,
     :param silent: set to True to prevent printing out summary statistics, defaults to False
     :param update_freq: frequency of batches with which to update counter, None disables, default 10
     :param evaluate_batch_size: batch size for evaluation stage, default 1024
-    :param update_callback: optional function of accuracy and loss to update, default None
+    :param update_callback:sample_weight optional function of accuracy and loss to update, default None
     :param epoch_callback: optional function of epoch and model, default None
     :return: None
     """
@@ -92,32 +92,53 @@ def train(dataset: torch.utils.data.Dataset,
     model.train()
     features = []
     actual = []
+    idxs   = []
     # form initial cluster centres
     for index, batch in enumerate(data_iterator):
-        if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) == 2:
-            batch, label, _, _ = batch  # if we have a prediction label, separate it to actual
+        if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 3:
+            batch, label, idx, _, _ = batch  # if we have a prediction label, separate it to actual
             actual.append(label)
+            idxs.append(idx)
+        if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 1:
+            batch, label, idx = batch  # if we have a prediction label, separate it to actual
+            actual.append(label)
+            idxs.append(idx)
         if cuda:
             batch = batch.cuda(non_blocking = True)
         features.append(model.encoder(batch).detach().cpu())
     actual    = torch.cat(actual).long()
-    predicted = kmeans.fit_predict(torch.cat(features).numpy())
+    idxs      = torch.cat(idxs).long()
+    predicted = kmeans.fit_predict(
+        torch.cat(features).numpy(),
+        sample_weight = model.assignment.weights(actual, idxs)
+    )
+    
+    # Computing the positive ration scores and the positive ratio clusters
     pred_rep  = torch.tensor(predicted).repeat(1,50).reshape(50,-1)
     c_rep     = (pred_rep == torch.arange(50).reshape(-1,1)).int()
     c_sizes   = c_rep.sum(-1)
     cp_rep    = c_rep*actual.repeat((50,1))
     cp_sizes  = cp_rep.sum(-1)
     cp_freq   = cp_sizes/c_sizes
+    # tensor [Clusters]. 1 if the cluster is a positive ratio cluster
+    # and 0 otherwise.
     cpr       = cp_freq > positive_ratio
-    # predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
-    # _, accuracy = cluster_accuracy(predicted, actual.cpu().numpy())
-    cluster_centers = torch.tensor(kmeans.cluster_centers_, dtype=torch.float, requires_grad=True)
+    predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
+    _, accuracy = cluster_accuracy(predicted, actual.cpu().numpy())
+    cluster_centers = torch.tensor(
+        kmeans.cluster_centers_,
+        dtype=torch.float, requires_grad=True
+    )
+    predicted_idxed = torch.cat(
+        [idxs.reshape(-1,1), predicted.reshape(-1,1)],
+        dim = -1
+    )
     if cuda:
         cluster_centers = cluster_centers.cuda(non_blocking=True)
     with torch.no_grad():
         # initialise the cluster centers
         model.state_dict()['assignment.cluster_centers'].copy_(cluster_centers)
-        model.state_dict()['assignment.cluster_predicted'].copy_(cluster_centers)
+        model.state_dict()['assignment.cluster_predicted'].copy_(predicted_idxed)
         model.state_dict()['assignment.cluster_positive_ratio'].copy_(cpr)
     loss_function = nn.KLDivLoss(size_average=False)
     delta_label = None

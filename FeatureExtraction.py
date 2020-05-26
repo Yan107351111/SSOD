@@ -116,10 +116,10 @@ class FrameRegionProposalsDataset(Dataset):
             with torch.no_grad():
                 features = self.transform(image)
                 # features.requires_grad = False
-        if self.output == 4:
-            return features, label , box, video
-        if self.output == 2:
-            return features, label
+        if self.output == 5:
+            return features, label, idx, box, video
+        if self.output == 3:
+            return features, label, idx
         return features
         
         
