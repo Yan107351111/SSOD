@@ -20,13 +20,12 @@ if __name__ == '__main__':
     OUT_PATH  = '..\\..\\data\\region_proposals'
     ############ defults
     N      = 300 # number of reg props
-    SKIP   = 1   # take only SKIP'th proposal
+    SKIP   = 5   # take only SKIP'th proposal
     LABELS = ['bike', 'cup', 'dog', 'drum', 'guitar',
                'gun', 'horse', 'pan', 'plate',
                'scissors', 'tire']
-    IMSIZE = 224
+    IMSIZE = 299 # 224 fml
     ############
-    
     
     image_names = [image_name
                    for image_name in os.listdir(DATA_PATH)
