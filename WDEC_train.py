@@ -28,6 +28,126 @@ from torch.utils.data.dataloader import DataLoader, default_collate
 from tqdm import tqdm
 from typing import Tuple, Callable, Optional, Union
 
+def SSKMeans(
+        wdec: torch.nn.Module,
+        features: torch.tensor,
+        actual: torch.tensor,
+        idxs: torch.tensor,
+        boxs: torch.tensor,
+        videos: torch.tensor,
+        frames: torch.tensor,
+    ) -> Tuple[np.ndarray, KMeans]:
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    wdec : torch.nn.Module
+        DESCRIPTION.
+    features : torch.tensor
+        DESCRIPTION.
+    actual : torch.tensor
+        DESCRIPTION.
+    idxs : torch.tensor
+        DESCRIPTION.
+    boxs : torch.tensor
+        DESCRIPTION.
+    videos : torch.tensor
+        DESCRIPTION.
+    frames : torch.tensor
+        DESCRIPTION.
+     : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    predicted : TYPE
+        DESCRIPTION.
+    kmeans : TYPE
+        DESCRIPTION.
+
+    '''
+    kmeans = KMeans(n_clusters=wdec.cluster_number, n_init=20)
+    # compute the weighted K-Means sample weights using potential scores and
+    # DSD
+    if wdec.assignment.cluster_predicted is not None:
+        feature_list  = []
+        video_list    = []
+        label_list    = []
+        K             = wdec.assignment.cluster_number
+        idxs, indices = torch.sort(idxs)
+        features      = features[indices]
+        actual        = actual[indices]
+        boxs          = boxs[indices]
+        videos        = videos[indices]
+        frames        = frames[indices]
+        DCD_count     = torch.zeros((K,))
+        for C in range(K):
+            C_bool = wdec.assignment.cluster_predicted[:,1]==C
+            C_inds = wdec.assignment.cluster_predicted[:,0][C_bool]
+            feature_list.append(features[C_inds])
+            video_list.append(videos[C_inds])
+            label_list.append(actual[C_inds])
+            video_frames = videos[C_inds]*10000 + frames[C_inds]
+            ## Run DSD
+            DCD_count[C] = len(DSD(boxs[C_inds], video_frames))
+            
+        ## Compute the potential score Sk in (1) for each cluster
+        ## set τ = 50
+        sample_weights = PotentialScores(
+            feature_list, video_list, label_list,
+        ) 
+        sample_weights /= DCD_count 
+        # TODO: find out what "normalized by the number of positive samples
+        # in the cluster defined by DSD" means (question no.10 in notebook)
+    else: sample_weights = None
+    ## Re-initialize cluster centers using Weighted K-Means
+    predicted = kmeans.fit_predict(
+        features.numpy(),
+        sample_weight = sample_weights, # model.assignment.weights(actual, idxs),
+    )
+    return predicted, kmeans
+
+def PositiveRatioClusters(
+        predicted: np.ndarray,
+        actual: torch.tensor,
+        K: int,
+        positive_ratio: float,
+    ) -> torch.tensor:
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    predicted : np.ndarray
+        DESCRIPTION.
+    actual : torch.tensor
+        DESCRIPTION.
+    K : int
+        DESCRIPTION.
+    positive_ratio : float
+        DESCRIPTION.
+
+    Returns
+    -------
+    cpr : torch.tensor
+        DESCRIPTION.
+
+    '''
+    pred_rep  = torch.tensor(predicted).repeat(1,K).reshape(K,-1)
+    c_rep     = (pred_rep == torch.arange(K).reshape(-1,1)).int()
+    c_sizes   = c_rep.sum(-1)
+    cp_rep    = c_rep*actual.repeat((K,1))
+    cp_sizes  = cp_rep.sum(-1)
+    cp_freq   = cp_sizes/c_sizes
+    # tensor [Clusters]. 1 if the cluster is a positive ratio cluster
+    # and 0 otherwise.
+    cpr       = cp_freq > positive_ratio
+    return cpr
+
+def ReInitKMeans(wdec, data_iterator): # TODO: finish function and put in train function
+
+
 
 def train(dataset: torch.utils.data.Dataset,
           wdec: torch.nn.Module,
@@ -94,9 +214,9 @@ def train(dataset: torch.utils.data.Dataset,
         },
         disable=silent
     )
+    wdec.train()
+    
     if reinitKMeans:
-        kmeans = KMeans(n_clusters=wdec.cluster_number, n_init=20)
-        wdec.train()
         features = []
         actual   = []
         idxs     = []
@@ -113,10 +233,6 @@ def train(dataset: torch.utils.data.Dataset,
                 videos.append(video)
                 frames.append(frames)
             else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
-            # elif (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 1:
-            #     batch, label, idx = batch  # if we have a prediction label, separate it to actual
-            #     actual.append(label)
-            #     idxs.append(idx)
             if cuda:
                 batch = batch.cuda(non_blocking = True)
             features.append(wdec.encoder(batch).detach().cpu())
@@ -126,55 +242,14 @@ def train(dataset: torch.utils.data.Dataset,
         boxs      = torch.cat(boxs).long()
         videos    = torch.cat(videos).long()
         
-        # compute the weighted K-Means sample weights using potential scores and
-        # DSD
-        if wdec.assignment.cluster_predicted is not None:
-            feature_list  = []
-            video_list    = []
-            label_list    = []
-            K             = wdec.assignment.cluster_number
-            idxs, indices = torch.sort(idxs)
-            features      = features[indices]
-            actual        = actual[indices]
-            boxs          = boxs[indices]
-            videos        = videos[indices]
-            frames        = frames[indices]
-            DCD_count     = torch.zeros((K,))
-            for C in range(K):
-                C_bool = wdec.assignment.cluster_predicted[:,1]==C
-                C_inds = wdec.assignment.cluster_predicted[:,0][C_bool]
-                feature_list.append(features[C_inds])
-                video_list.append(videos[C_inds])
-                label_list.append(actual[C_inds])
-                video_frames = videos[C_inds]*10000 + frames[C_inds]
-                ## Run DSD
-                DCD_count[C] = len(DSD(boxs[C_inds], video_frames))
-                
-            ## Compute the potential score Sk in (1) for each cluster
-            ## set τ = 50
-            sample_weights = PotentialScores(
-                feature_list, video_list, label_list,
-            ) 
-            sample_weights /= DCD_count 
-            # TODO: find out what "normalized by the number of positive samples
-            # in the cluster defined by DSD" means (question no.10 in notebook)
-        else: sample_weights = None
-        ## Re-initialize cluster centers using Weighted K-Means
-        predicted = kmeans.fit_predict(
-            features.numpy(),
-            sample_weight = sample_weights, # model.assignment.weights(actual, idxs),
+        predicted, kmeans = SSKMeans(
+            wdec, features, actual, idxs, boxs, videos, frames
         )
         
         # Computing the positive ration scores and the positive ratio clusters
-        pred_rep  = torch.tensor(predicted).repeat(1,50).reshape(50,-1)
-        c_rep     = (pred_rep == torch.arange(50).reshape(-1,1)).int()
-        c_sizes   = c_rep.sum(-1)
-        cp_rep    = c_rep*actual.repeat((50,1))
-        cp_sizes  = cp_rep.sum(-1)
-        cp_freq   = cp_sizes/c_sizes
-        # tensor [Clusters]. 1 if the cluster is a positive ratio cluster
-        # and 0 otherwise.
-        cpr       = cp_freq > positive_ratio
+        cpr = PositiveRatioClusters(
+            predicted, actual, wdec.assignment.cluster_number, positive_ratio
+        )
         
         predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
         _, accuracy        = cluster_accuracy(predicted, actual.cpu().numpy())
@@ -193,6 +268,7 @@ def train(dataset: torch.utils.data.Dataset,
             wdec.state_dict()['assignment.cluster_centers'].copy_(cluster_centers)
             wdec.state_dict()['assignment.cluster_predicted'].copy_(predicted_idxed)
             wdec.state_dict()['assignment.cluster_positive_ratio'].copy_(cpr)
+            
     loss_function = nn.KLDivLoss(size_average=False)
     delta_label = None
     for epoch in range(epochs):
