@@ -112,12 +112,13 @@ class FrameRegionProposalsDataset(Dataset):
         label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
         box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
+        frame    = torch.tensor(int(item.split(';')[2]))
         if self.transform:
             with torch.no_grad():
                 features = self.transform(image)
                 # features.requires_grad = False
-        if self.output == 5:
-            return features, label, idx, box, video
+        if self.output == 6:
+            return features, label, idx, box, video, frame
         if self.output == 3:
             return features, label, idx
         return features

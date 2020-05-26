@@ -69,7 +69,13 @@ ae.train(
 
 
 # Train a weighted DEC
-
+# We further re-initialize our DEC by weighted
+# K-means every I epochs
+I = 100
+# with the new weights set by Sk normalized by the
+# number of positive samples in the cluster,
+# defined by DSD 
+sample_weights = None
 # We set the positive ratio threshold as Pk ≥ 0.6
 P_k = 0.6
 # Initialize cluster centers using uniform K-Means
@@ -90,14 +96,16 @@ if cuda:
     model.cuda()
 dec_optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
 
+
 train(
-    dataset=ds_train,
-    model=model,
-    epochs=100,
-    batch_size=256,
-    optimizer=dec_optimizer,
-    stopping_delta=0.000001,
-    cuda=cuda
+    dataset        = ds_train,
+    model          = model,
+    epochs         = I,
+    batch_size     = 256,
+    optimizer      = dec_optimizer,
+    stopping_delta = None, # 0.000001,
+    cuda           = cuda,
+    sample_weights = sample_weights
 )
 
 

@@ -79,7 +79,7 @@ class WeightedClusterAssignment(nn.Module):
         else:
             initial_cluster_centers = cluster_centers
         self.cluster_centers = Parameter(initial_cluster_centers)
-        # self.cluster_predicted = None
+        self.cluster_predicted = None
         self.cluster_positive_ratio = None
 
     def forward(self, batch: torch.Tensor, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
@@ -110,9 +110,9 @@ class WeightedClusterAssignment(nn.Module):
         # compute the weights according to the labels.
         weights = (0.5*(labels==0).float() + (labels==1).float())
         # only apply to positive ratio clusters.
-        weights *= (self.cluster_positive_ratio[idx])
+        weights *= (self.cluster_positive_ratio[self.cluster_predicted[idx]])
         # set "weight" to 1 for all other clusters
-        weights += (self.cluster_positive_ratio[idx]==0).int()
+        weights += (self.cluster_positive_ratio[self.cluster_predicted[idx]]==0).int()
         return weights
 
         
