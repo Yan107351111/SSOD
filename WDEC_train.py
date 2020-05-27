@@ -23,7 +23,9 @@ import torch
 import torch.nn as nn
 # from torch.optim import SGD
 # from torch.optim.lr_scheduler import StepLR
+from torch.utils.data import Sampler
 from torch.utils.data.dataloader import DataLoader, default_collate
+
 
 from tqdm import tqdm
 from typing import Tuple, Callable, Optional, Union
@@ -36,9 +38,9 @@ def SSKMeans(
         boxs: torch.tensor,
         videos: torch.tensor,
         frames: torch.tensor,
-    ) -> Tuple[np.ndarray, KMeans]:
+    ):
     '''
-    TODO:
+    
 
     Parameters
     ----------
@@ -56,16 +58,13 @@ def SSKMeans(
         DESCRIPTION.
     frames : torch.tensor
         DESCRIPTION.
-     : TYPE
-        DESCRIPTION.
 
     Returns
     -------
-    predicted : TYPE
+    predicted : np.ndarray
         DESCRIPTION.
-    kmeans : TYPE
+    kmeans : KMeans
         DESCRIPTION.
-
     '''
     kmeans = KMeans(n_clusters=wdec.cluster_number, n_init=20)
     # compute the weighted K-Means sample weights using potential scores and
@@ -107,12 +106,12 @@ def SSKMeans(
         sample_weight = sample_weights, # model.assignment.weights(actual, idxs),
     )
     return predicted, kmeans
+    
 
 def PositiveRatioClusters(
         predicted: np.ndarray,
         actual: torch.tensor,
         K: int,
-        positive_ratio: float,
     ) -> torch.tensor:
     '''
     TODO:
@@ -125,12 +124,10 @@ def PositiveRatioClusters(
         DESCRIPTION.
     K : int
         DESCRIPTION.
-    positive_ratio : float
-        DESCRIPTION.
 
     Returns
     -------
-    cpr : torch.tensor
+    cp_freq : torch.tensor
         DESCRIPTION.
 
     '''
@@ -142,11 +139,108 @@ def PositiveRatioClusters(
     cp_freq   = cp_sizes/c_sizes
     # tensor [Clusters]. 1 if the cluster is a positive ratio cluster
     # and 0 otherwise.
-    cpr       = cp_freq > positive_ratio
-    return cpr
+    return cp_freq
 
 def ReInitKMeans(wdec, data_iterator): # TODO: finish function and put in train function
+    raise NotImplementedError()
 
+
+def DataSetExtract(
+        dataset: torch.utils.data.Dataset,
+        wdec: torch.nn.Module,
+        silent: bool = False,
+        batch_size: int = 512,
+        collate_fn = default_collate,
+        sampler: Optional[torch.utils.data.sampler.Sampler] = None,
+        cuda: bool = True,
+    ):
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    dataset : torch.utils.data.Dataset
+        DESCRIPTION.
+    wdec : torch.nn.Module
+        DESCRIPTION.
+    silent : bool, optional
+        DESCRIPTION. The default is False.
+    batch_size : int, optional
+        DESCRIPTION. The default is 512.
+    collate_fn : TYPE, optional
+        DESCRIPTION. The default is default_collate.
+    sampler : Optional[torch.utils.data.sampler.Sampler], optional
+        DESCRIPTION. The default is None.
+    cuda : bool, optional
+        DESCRIPTION. The default is True.
+     : TYPE
+        DESCRIPTION.
+
+    Raises
+    ------
+    RuntimeError
+        DESCRIPTION.
+
+    Returns
+    -------
+    features : TYPE
+        DESCRIPTION.
+    actual : TYPE
+        DESCRIPTION.
+    idxs : TYPE
+        DESCRIPTION.
+    boxs : TYPE
+        DESCRIPTION.
+    videos : TYPE
+        DESCRIPTION.
+
+    '''
+    static_dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        pin_memory=False,
+        sampler=sampler,
+        shuffle=False
+    )
+    data_iterator = tqdm(
+        static_dataloader,
+        leave=True,
+        unit='batch',
+        postfix={
+            'epo': -1,
+            'acc': '%.4f' % 0.0,
+            'lss': '%.8f' % 0.0,
+            'dlb': '%.4f' % -1,
+        },
+        disable=silent
+    )
+    features = []
+    actual   = []
+    idxs     = []
+    videos   = []
+    boxs     = []
+    frames   = []
+    # form initial cluster centres
+    for index, batch in enumerate(data_iterator):
+        if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 3:
+            batch, label, idx, box, video, frame = batch  # if we have a prediction label, separate it to actual
+            actual.append(label)
+            idxs.append(idx)
+            boxs.append(box)
+            videos.append(video)
+            frames.append(frames)
+        else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
+        if cuda:
+            batch = batch.cuda(non_blocking = True)
+        features.append(wdec.encoder(batch).detach().cpu())
+    features  = torch.cat(features)
+    actual    = torch.cat(actual).long()
+    idxs      = torch.cat(idxs).long()
+    boxs      = torch.cat(boxs).long()
+    videos    = torch.cat(videos).long()
+    frames    = torch.cat(frames).long()
+    return features, actual, idxs, boxs, videos, frames
 
 
 def train(dataset: torch.utils.data.Dataset,
@@ -217,40 +311,16 @@ def train(dataset: torch.utils.data.Dataset,
     wdec.train()
     
     if reinitKMeans:
-        features = []
-        actual   = []
-        idxs     = []
-        videos   = []
-        boxs     = []
-        frames   = []
-        # form initial cluster centres
-        for index, batch in enumerate(data_iterator):
-            if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 3:
-                batch, label, idx, box, video, frame = batch  # if we have a prediction label, separate it to actual
-                actual.append(label)
-                idxs.append(idx)
-                boxs.append(box)
-                videos.append(video)
-                frames.append(frames)
-            else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
-            if cuda:
-                batch = batch.cuda(non_blocking = True)
-            features.append(wdec.encoder(batch).detach().cpu())
-        features  = torch.cat(features)
-        actual    = torch.cat(actual).long()
-        idxs      = torch.cat(idxs).long()
-        boxs      = torch.cat(boxs).long()
-        videos    = torch.cat(videos).long()
-        
+        # get all data needed for KMeans.
+        features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
+        # KMeans.
         predicted, kmeans = SSKMeans(
             wdec, features, actual, idxs, boxs, videos, frames
         )
-        
         # Computing the positive ration scores and the positive ratio clusters
         cpr = PositiveRatioClusters(
             predicted, actual, wdec.assignment.cluster_number, positive_ratio
         )
-        
         predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
         _, accuracy        = cluster_accuracy(predicted, actual.cpu().numpy())
         cluster_centers    = torch.tensor(
@@ -340,7 +410,44 @@ def train(dataset: torch.utils.data.Dataset,
             epoch_callback(epoch, wdec)
 
 
+'''
+class PotentialSampler(Sampler):
+    def __init__(
+            self,
+            data_source: torch.utils.data.Dataset,
+            positive_idxs: torch.Tensor,
+            semple_distribution: torch.Tensor,
+            num_samples: int,
+        ):
+        
+        self.data_source = data_source
+        self.num_samples = num_samples
+        self.positive_idxs = positive_idxs
+        negative_idxs = []
+        for i in range(num_samples):
+            if (positive_idxs!=i).any():
+                negative_idxs.append(i)
+        self.negative_idxs = torch.tensor(negative_idxs)
+        self.semple_distribution = semple_distribution
 
+    def __iter__(self):
+        
+        # sample from uniform distribution.
+        rnd = torch.rand(self.num_samples)
+        inds = torch.zeros_like(rnd)
+        # transform half of the pdf to uniformly sampled negative samples.
+        inds[rnd<0.5] = (rnd[rnd<0.5]*2*len(self.negative_idxs)+1).int()
+        # compute the positive sample cdf.
+        thresholds = self.semple_distribution.cumsum(0).reshape(-1,1)
+        # transform half of the initial pdf to samples from the positive
+        # sample distribution.
+        positives = ((rnd[rnd>=0.5]-0.5)*2>thresholds).sum(0)
+        inds[rnd>=0.5] = self.positive_idxs[positives]
+        return iter(range(len(self.data_source)))
+    
+    def __len__(self):
+        return len(self.data_source)
+'''
 
 
 

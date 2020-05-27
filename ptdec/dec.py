@@ -42,6 +42,7 @@ class WDEC(nn.Module):
                  cluster_number: int,
                  hidden_dimension: int,
                  encoder: torch.nn.Module,
+                 positive_ratio_threshold: float = 0.6,
                  alpha: float = 1.0):
         """
         Module which holds all the moving parts of the DEC algorithm, as described in
@@ -57,7 +58,7 @@ class WDEC(nn.Module):
         self.hidden_dimension = hidden_dimension
         self.cluster_number = cluster_number
         self.alpha = alpha
-        self.assignment = WeightedClusterAssignment(cluster_number, self.hidden_dimension, alpha)
+        self.assignment = WeightedClusterAssignment(cluster_number, self.hidden_dimension, positive_ratio_threshold, alpha)
 
     def forward(self, batch: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """

@@ -10,11 +10,12 @@ from ptsdae.sdae import StackedDenoisingAutoEncoder
 import ptsdae.model as ae
 import torch
 from torch import nn
+from torch.utils.data import WeightedRandomSampler, TensorDataset, DataLoader
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from FeatureExtraction import get_dataset
 from ptdec.dec import WDEC
-from ptdec.model import train
+from WDEC_train import train
 
 
 
@@ -88,7 +89,8 @@ print('WDEC stage.')
 wdec = WDEC(
     cluster_number   = K,
     hidden_dimension = 10, ### TODO: what is the WDEC architecture they used (question no.5 in notebook)
-    encoder          = autoencoder.encoder
+    encoder          = autoencoder.encoder,
+    positive_ratio_threshold = P_k,
 )
 detector = nn.sequential(
     [nn.linear(embedded_dim, 1024), 
@@ -142,10 +144,63 @@ for epoch in range(MAX_EPOCHS):
         cuda           = cuda,
     )
     
-    
     ## Train a region classifier with sampled positive and negative regions 
+    # get all data needed to compute the potential scores.
+    features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
+    feature_list  = []
+    video_list    = []
+    label_list    = []
+    K             = wdec.assignment.cluster_number
+    idxs, indices = torch.sort(idxs)
+    features      = features[indices]
+    actual        = actual[indices]
+    boxs          = boxs[indices]
+    videos        = videos[indices]
+    frames        = frames[indices]
+    DCD_count     = torch.zeros((K,))
+    DCD_idxs      = []
+    for C in range(K):
+        C_bool = wdec.assignment.cluster_predicted[:,1]==C
+        C_inds = wdec.assignment.cluster_predicted[:,0][C_bool]
+        feature_list.append(features[C_inds])
+        video_list.append(videos[C_inds])
+        label_list.append(actual[C_inds])
+        video_frames = videos[C_inds]*10000 + frames[C_inds]
+        ## Run DSD
+        dsd = DSD(boxs[C_inds], video_frames)
+        DCD_idxs.append(idxs[C_inds][dsd])
+        DCD_count[C] = len(dsd)
+        
+    positive_idxs = torch.cat(DCD_idxs).int()
+    ## Compute the potential score Sk in (1) for each cluster
+    ## set τ = 50
+    potential_scores = PotentialScores(
+        feature_list, video_list, label_list,
+    ) 
+    potential_scores /= DCD_count
     
+    pred_idxs = wdec.assignment.cluster_predicted[:,0].clone()
+    _, pred_idxs = pred_idxs.sort()
+    pred_DCD_idxs = pred_idxs[DCD_idxs]
+    dcd_sample_scores = potential_scores[wdec.assignment.cluster_predicted[pred_DCD_idxs,1]]
     
+    labels = torch.zeros((len(ds_train),))
+    labels[positive_idxs] = 1
+    sample_distribution = torch.zeros((len(ds_train),))
+    sample_distribution[positive_idxs] = dcd_sample_scores/2
+    sample_distribution[sample_distribution==0] = 1/(len(ds_train)-len(positive_idxs))/2
+    
+    sp_det = WeightedRandomSampler(
+        weights     = sample_distribution,
+        num_samples = batch_num*batch_size,
+        replacement = True,
+    )
+    ds_det = TensorDataset(features, labels)
+    dl_det = DataLoader(
+        dataset    = ds_det,
+        batch_size = batch_size,
+        sampler    = sp_det,
+    )
     
     
     
