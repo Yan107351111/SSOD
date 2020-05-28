@@ -24,11 +24,14 @@ from WDEC_train import train, DataSetExtract, PotentialScores
 
 
 # get dataset and dataloader
+print('preparing prerequisites')
 data_path    = sys.argv[1] # '../../data/region_proposals'
 batch_size   = 256
 batch_num    = 100
 label        = sys.argv[2] # 'bike'
+print('getting dataset')
 ds_train     = get_dataset(data_path, label)
+print('got dataset')
 ds_train.output = 1
 
 # pretrain 
