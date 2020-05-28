@@ -120,10 +120,11 @@ class WeightedClusterAssignment(nn.Module):
         # set "weight" to 1 for all other clusters
         weights += (positive_clusters==0).float()
         return weights
-
+    
+"""
     def samples_distribution(self, batch: Tuple[torch.Tensor], PotentialScores: torch.Tensor) -> torch.Tensor:
         '''
-        
+        TODO:
         
         :param idx: FloatTensor of size [batch size]
         :param bounding_boxes: FloatTensor of size [batch size]
@@ -141,7 +142,7 @@ class WeightedClusterAssignment(nn.Module):
             dsd = DSD(boxs[C_inds], video_frames)
             dsd_idx = idxs[C_inds][dsd]
             DCD_count[C] = len(dsd)
-        
+"""       
         
         
         

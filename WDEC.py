@@ -5,7 +5,7 @@ Created on Sun Apr 26 09:35:33 2020
 @author: yan10
 """
 
-
+from detector_train import Trainer
 from ptsdae.sdae import StackedDenoisingAutoEncoder
 import ptsdae.model as ae
 import torch
@@ -108,11 +108,12 @@ if cuda:
 dec_optimizer = SGD(wdec.parameters(), lr=0.01, momentum=0.9)
 
 '''
-cross-entropy loss function
+
 '''
-#region classifier we use 3 FC layers (1024,1024,2) with a ReLU
-#activation in layers 1-2 and a softmax activation for the output layer
-#Dropout is used for the two hidden layers with probability of 0.8
+# region classifier we use 3 FC layers (1024,1024,2) with a ReLU
+# activation in layers 1-2 and a softmax activation for the output layer
+# Dropout is used for the two hidden layers with probability of 0.8
+# cross-entropy loss function
 detector = nn.sequential(
     [nn.linear(embedded_dim, 1024), 
      nn.ReLU(),
@@ -128,6 +129,13 @@ detector = nn.sequential(
 det_optimizer = Adam(detector.parameters(), lr=1e-4)
 # The learning rate is decreased by a factor of 0.6 every 6 epochs
 scheduler = StepLR(det_optimizer, step_size = 6, gamma = 0.6)
+det_trainer = Trainer(
+    model = detector,
+    loss_fn = nn.CrossEntropyLoss(),
+    optimizer = det_optimizer,
+    scheduler = scheduler,
+    device = 'cuda' if torch.cuda.is_available() else 'cpu',
+)
 
 for epoch in range(MAX_EPOCHS):
     reinitKMeans = False
@@ -144,7 +152,7 @@ for epoch in range(MAX_EPOCHS):
         cuda           = cuda,
     )
     
-    ## Train a region classifier with sampled positive and negative regions 
+    # Train a region classifier with sampled positive and negative regions 
     # get all data needed to compute the potential scores.
     features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
     feature_list  = []
@@ -184,13 +192,17 @@ for epoch in range(MAX_EPOCHS):
     pred_DCD_idxs = pred_idxs[DCD_idxs]
     dcd_sample_scores = potential_scores[wdec.assignment.cluster_predicted[pred_DCD_idxs,1]]
     
+    # samples from DSD labeled as positive detections
+    # all other samples labeled as negatives
     labels = torch.zeros((len(ds_train),))
     labels[positive_idxs] = 1
+    # set the sample distribution to uniform over the negative samples 
+    # and weighed by the normalized potential scores over the DSD samples.
     sample_distribution = torch.zeros((len(ds_train),))
     sample_distribution[positive_idxs] = dcd_sample_scores/2
     sample_distribution[sample_distribution==0] = 1/(len(ds_train)-len(positive_idxs))/2
     
-    sp_det = WeightedRandomSampler(
+    sampler_det = WeightedRandomSampler(
         weights     = sample_distribution,
         num_samples = batch_num*batch_size,
         replacement = True,
@@ -199,8 +211,11 @@ for epoch in range(MAX_EPOCHS):
     dl_det = DataLoader(
         dataset    = ds_det,
         batch_size = batch_size,
-        sampler    = sp_det,
+        sampler    = sampler_det,
     )
+    det_trainer.fit(dl_det, num_epochs = 1)
+    
+    
     
     
     
