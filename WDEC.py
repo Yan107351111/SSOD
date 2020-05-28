@@ -142,7 +142,7 @@ for epoch in range(MAX_EPOCHS):
         reinitKMeans = True
     train(
         dataset        = ds_train,
-        model          = wdec,
+        wdec          = wdec,
         epochs         = 1,
         reinitKMeans   = reinitKMeans,
         batch_size     = 256,
