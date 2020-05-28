@@ -42,6 +42,7 @@ class FrameRegionProposalsDataset(Dataset):
 
         '''
         self.output = output
+        self.tensors = []
         torch.manual_seed(random_seed)
         self.video_ref   = {}
         self.video_deref = {}
@@ -51,7 +52,11 @@ class FrameRegionProposalsDataset(Dataset):
         
         # creating positive item list
         for i in os.listdir(os.path.join(root_dir, label)):
-            self.all_items.append(os.path.join(label, i))
+            img_path = os.path.join(label, i)
+            image = plt.imread(img_path)
+            features = self.transform(image)
+            self.all_items.append(img_path)
+            self.tensors.append(features)
             video_name = i.split(';')[1]
             if video_name not in list(self.video_ref):
                 self.video_ref[video_name] = video_hash
@@ -84,12 +89,15 @@ class FrameRegionProposalsDataset(Dataset):
                 neg_region_name = os.path.join(
                     other_labels[neg_label],
                     neg_region_name)
+            image = plt.imread(neg_region_name)
+            features = self.transform(image)
             self.all_items.append(neg_region_name)
+            self.tensors.append(features)
             if video_name not in list(self.video_ref):
                 self.video_ref[video_name] = video_hash
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
-        
+        # self.tensors = torch.cat(self.tensors)
         self.root_dir  = root_dir
         self.transform = transform
         self.label     = label
@@ -106,16 +114,17 @@ class FrameRegionProposalsDataset(Dataset):
         
         item = self.all_items[idx]
         # print(f'item = {item}')
-        img_name = os.path.join(self.root_dir,item)
-        image    = plt.imread(img_name)
+        # img_name = os.path.join(self.root_dir,item)
+        # image    = plt.imread(img_name)
+        features = self.tensors[idx]
         # image    = image.reshape(1,*image.shape)
         label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
         box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
         frame    = torch.tensor(int(item.split(';')[2]))
-        if self.transform:
-            with torch.no_grad():
-                features = self.transform(image)
+        # if self.transform:
+        #     with torch.no_grad():
+        #         features = self.transform(image)
                 # features.requires_grad = False
         if self.output == 6:
             return features, label, idx, box, video, frame

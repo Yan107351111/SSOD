@@ -138,7 +138,7 @@ det_trainer = Trainer(
     loss_fn = nn.CrossEntropyLoss(),
     optimizer = det_optimizer,
     scheduler = scheduler,
-    device = 'cuda' if torch.cuda.is_available() else 'cpu',
+    device = 'cuda' if cuda else 'cpu',
 )
 
 for epoch in range(MAX_EPOCHS):
