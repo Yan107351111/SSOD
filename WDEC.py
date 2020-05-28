@@ -76,7 +76,7 @@ ae.train(
     update_callback=training_callback
 )
 
-
+ds_train.output = 6
 # Train a weighted DEC
 # We further re-initialize our DEC by weighted
 # K-means every I epochs
