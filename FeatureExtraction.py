@@ -101,11 +101,11 @@ class FrameRegionProposalsDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        print(f'getting item {idx} out of {len(self)}')
+        # print(f'getting item {idx} out of {len(self)}')
         
         
         item = self.all_items[idx]
-        print(f'item = {item}')
+        # print(f'item = {item}')
         img_name = os.path.join(self.root_dir,item)
         image    = plt.imread(img_name)
         # image    = image.reshape(1,*image.shape)
