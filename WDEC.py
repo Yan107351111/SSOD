@@ -100,12 +100,12 @@ wdec = WDEC(
     positive_ratio_threshold = P_k,
 )
 detector = nn.Sequential(
-    [nn.Linear(embedded_dim, 1024), 
-     nn.ReLU(),
-     nn.Linear(1024, 1024),
-     nn.ReLU(),
-     nn.Linear(1024, 2),
-     nn.Softmax(),]
+    nn.Linear(embedded_dim, 1024), 
+    nn.ReLU(),
+    nn.Linear(1024, 1024),
+    nn.ReLU(),
+    nn.Linear(1024, 2),
+    nn.Softmax(),
 )
 
 if cuda:
