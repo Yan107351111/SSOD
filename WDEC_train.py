@@ -6,7 +6,7 @@ Created on Thu May 21 17:23:14 2020
 """
 
 # from FeatureExtraction import get_dataset
-from DSd import DSD
+from DSD import DSD
 import numpy as np
 
 from PotentialScoring import PotentialScores
