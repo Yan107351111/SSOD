@@ -53,7 +53,7 @@ class WDEC(nn.Module):
         :param encoder: encoder to use
         :param alpha: parameter representing the degrees of freedom in the t-distribution, default 1.0
         """
-        super(DEC, self).__init__()
+        super(WDEC, self).__init__()
         self.encoder = encoder
         self.hidden_dimension = hidden_dimension
         self.cluster_number = cluster_number
