@@ -105,14 +105,14 @@ wdec = WDEC(
 # Dropout is used for the two hidden layers with probability of 0.8
 # cross-entropy loss function
 detector = nn.Sequential(
-    nn.linear(embedded_dim, 1024), 
-     nn.ReLU(),
-     nn.Dropout(0.8),
-     nn.linear(1024, 1024),
-     nn.ReLU(),
-     nn.Dropout(0.8),
-     nn.linear(1024, 2),
-     nn.Softmax(),
+    nn.Linear(embedded_dim, 1024), 
+    nn.ReLU(),
+    nn.Dropout(0.8),
+    nn.Linear(1024, 1024),
+    nn.ReLU(),
+    nn.Dropout(0.8),
+    nn.Linear(1024, 2),
+    nn.Softmax(),
 )
 if cuda:
     wdec.cuda()
