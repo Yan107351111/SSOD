@@ -17,7 +17,7 @@ import torch
 from torch.utils.data import DataLoader
 from typing import Callable, Any
 from pathlib import Path
-from dip.cs236781.train_results import BatchResult, EpochResult, FitResult
+from cs236781.train_results import BatchResult, EpochResult, FitResult
 
 
 class Trainer(abc.ABC):
