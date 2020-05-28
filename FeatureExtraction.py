@@ -41,12 +41,15 @@ class FrameRegionProposalsDataset(Dataset):
         None.
 
         '''
-        self.output = output
-        self.tensors = []
+        self.root_dir  = root_dir
+        self.transform = transform
+        self.label     = label
+        self.output    = output
         torch.manual_seed(random_seed)
         self.video_ref   = {}
         self.video_deref = {}
         self.all_items   = []
+        self.tensors     = []
         video_hash = 0
         assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
         
@@ -98,9 +101,7 @@ class FrameRegionProposalsDataset(Dataset):
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
         # self.tensors = torch.cat(self.tensors)
-        self.root_dir  = root_dir
-        self.transform = transform
-        self.label     = label
+        
 
     def __len__(self):
         return len(self.all_items)
