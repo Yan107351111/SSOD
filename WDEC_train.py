@@ -100,6 +100,7 @@ def SSKMeans(
         # TODO: find out what "normalized by the number of positive samples
         # in the cluster defined by DSD" means (question no.10 in notebook)
     else: sample_weights = None
+    print(features.shape)
     ## Re-initialize cluster centers using Weighted K-Means
     predicted = kmeans.fit_predict(
         features.numpy(),
@@ -229,7 +230,7 @@ def DataSetExtract(
             idxs.append(idx)
             boxs.append(box)
             videos.append(video)
-            frames.append(frames)
+            frames.append(frame)
         else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
         if cuda:
             batch = batch.cuda(non_blocking = True)
@@ -319,7 +320,7 @@ def train(dataset: torch.utils.data.Dataset,
         )
         # Computing the positive ration scores and the positive ratio clusters
         cpr = PositiveRatioClusters(
-            predicted, actual, wdec.assignment.cluster_number, positive_ratio
+            predicted, actual, wdec.assignment.cluster_number,
         )
         predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
         _, accuracy        = cluster_accuracy(predicted, actual.cpu().numpy())
@@ -328,7 +329,7 @@ def train(dataset: torch.utils.data.Dataset,
             dtype=torch.float, requires_grad=True
         )
         predicted_idxed    = torch.cat(
-            [idxs.reshape(-1,1), predicted.reshape(-1,1)],
+            [idxs.reshape(-1,1), torch.tensor(predicted).reshape(-1,1)],
             dim = -1
         )
         if cuda:

@@ -119,7 +119,7 @@ class FrameRegionProposalsDataset(Dataset):
         # print(f'item = {item}')
         # img_name = os.path.join(self.root_dir,item)
         # image    = plt.imread(img_name)
-        features = self.tensors[idx]
+        features = self.tensors[idx].squeeze()
         # image    = image.reshape(1,*image.shape)
         label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
