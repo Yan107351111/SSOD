@@ -243,7 +243,7 @@ class Trainer(abc.ABC):
         return EpochResult(losses=losses, accuracy=R2)
 
 
-class dipRegTrainer(Trainer):
+class DetectorTrainer(Trainer):
     def __init__(self, model, loss_fn, optimizer, device=None):
         super().__init__(model, loss_fn, optimizer, device)
 

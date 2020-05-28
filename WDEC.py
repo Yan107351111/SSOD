@@ -5,7 +5,7 @@ Created on Sun Apr 26 09:35:33 2020
 @author: yan10
 """
 
-from detector_train import Trainer
+from detector_train import DetectorTrainer
 from DSD import DSD
 from FeatureExtraction import get_dataset
 from ptdec.dec import WDEC
@@ -128,7 +128,7 @@ dec_optimizer = SGD(wdec.parameters(), lr=0.01, momentum=0.9)
 det_optimizer = Adam(detector.parameters(), lr=1e-4)
 # The learning rate is decreased by a factor of 0.6 every 6 epochs
 scheduler = StepLR(det_optimizer, step_size = 6, gamma = 0.6)
-det_trainer = Trainer(
+det_trainer = DetectorTrainer(
     model = detector,
     loss_fn = nn.CrossEntropyLoss(),
     optimizer = det_optimizer,
