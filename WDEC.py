@@ -99,15 +99,21 @@ wdec = WDEC(
     encoder          = autoencoder.encoder,
     positive_ratio_threshold = P_k,
 )
-detector = nn.Sequential(
-    nn.Linear(embedded_dim, 1024), 
-    nn.ReLU(),
-    nn.Linear(1024, 1024),
-    nn.ReLU(),
-    nn.Linear(1024, 2),
-    nn.Softmax(),
-)
 
+# region classifier we use 3 FC layers (1024,1024,2) with a ReLU
+# activation in layers 1-2 and a softmax activation for the output layer
+# Dropout is used for the two hidden layers with probability of 0.8
+# cross-entropy loss function
+detector = nn.Sequential(
+    nn.linear(embedded_dim, 1024), 
+     nn.ReLU(),
+     nn.Dropout(0.8),
+     nn.linear(1024, 1024),
+     nn.ReLU(),
+     nn.Dropout(0.8),
+     nn.linear(1024, 2),
+     nn.Softmax(),
+)
 if cuda:
     wdec.cuda()
     detector.cuda()
@@ -117,20 +123,6 @@ dec_optimizer = SGD(wdec.parameters(), lr=0.01, momentum=0.9)
 '''
 
 '''
-# region classifier we use 3 FC layers (1024,1024,2) with a ReLU
-# activation in layers 1-2 and a softmax activation for the output layer
-# Dropout is used for the two hidden layers with probability of 0.8
-# cross-entropy loss function
-detector = nn.sequential(
-    [nn.linear(embedded_dim, 1024), 
-     nn.ReLU(),
-     nn.Dropout(0.8),
-     nn.linear(1024, 1024),
-     nn.ReLU(),
-     nn.Dropout(0.8),
-     nn.linear(1024, 2),
-     nn.Softmax(),]
-)
 
 # ADAM for optimization with a learning rate of 10−4
 det_optimizer = Adam(detector.parameters(), lr=1e-4)
