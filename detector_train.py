@@ -244,8 +244,8 @@ class Trainer(abc.ABC):
 
 
 class DetectorTrainer(Trainer):
-    def __init__(self, model, loss_fn, optimizer, device=None):
-        super().__init__(model, loss_fn, optimizer, device)
+    def __init__(self, model, loss_fn, optimizer, scheduler = None, device=None):
+        super().__init__(model, loss_fn, optimizer, scheduler, device)
 
     def train_epoch(self, dl_train: DataLoader, **kw):
         # TODO: Implement modifications to the base method, if needed.
