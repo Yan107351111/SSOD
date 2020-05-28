@@ -329,7 +329,7 @@ def train(dataset: torch.utils.data.Dataset,
             dtype=torch.float, requires_grad=True
         )
         predicted_idxed    = torch.cat(
-            [idxs.reshape(-1,1), torch.tensor(predicted).reshape(-1,1)],
+            [idxs.reshape(-1,1), torch.tensor(predicted).reshape(-1,1).long()],
             dim = -1
         )
         if cuda:
