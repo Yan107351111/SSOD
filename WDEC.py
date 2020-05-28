@@ -100,11 +100,11 @@ wdec = WDEC(
     positive_ratio_threshold = P_k,
 )
 detector = nn.Sequential(
-    [nn.linear(embedded_dim, 1024), 
+    [nn.Linear(embedded_dim, 1024), 
      nn.ReLU(),
-     nn.linear(1024, 1024),
+     nn.Linear(1024, 1024),
      nn.ReLU(),
-     nn.linear(1024, 2),
+     nn.Linear(1024, 2),
      nn.Softmax(),]
 )
 
