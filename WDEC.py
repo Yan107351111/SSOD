@@ -6,24 +6,28 @@ Created on Sun Apr 26 09:35:33 2020
 """
 
 from detector_train import Trainer
-from ptsdae.sdae import StackedDenoisingAutoEncoder
+from FeatureExtraction import get_dataset
+from ptdec.dec import WDEC
 import ptsdae.model as ae
+from ptsdae.sdae import StackedDenoisingAutoEncoder
+import sys
 import torch
 from torch import nn
 from torch.utils.data import WeightedRandomSampler, TensorDataset, DataLoader
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
-from FeatureExtraction import get_dataset
-from ptdec.dec import WDEC
+
+
 from WDEC_train import train
 
 
 
 
+
 # get dataset and dataloader
-data_path    = '../../data/region_proposals'
+data_path    = sys.argv[1] # '../../data/region_proposals'
 batch_size   = 256
-label        = 'bike'
+label        = sys.argv[2] # 'bike'
 ds_train     = get_dataset(data_path, label)
 ds_train.output = 1
 
