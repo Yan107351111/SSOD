@@ -53,7 +53,7 @@ class FrameRegionProposalsDataset(Dataset):
         # creating positive item list
         for i in os.listdir(os.path.join(root_dir, label)):
             img_path = os.path.join(label, i)
-            image = plt.imread(img_path)
+            image = plt.imread(os.path.join(self.root_dir,img_path))
             features = self.transform(image)
             self.all_items.append(img_path)
             self.tensors.append(features)
@@ -89,7 +89,7 @@ class FrameRegionProposalsDataset(Dataset):
                 neg_region_name = os.path.join(
                     other_labels[neg_label],
                     neg_region_name)
-            image = plt.imread(neg_region_name)
+            image = plt.imread(os.path.join(self.root_dir,neg_region_name))
             features = self.transform(image)
             self.all_items.append(neg_region_name)
             self.tensors.append(features)
