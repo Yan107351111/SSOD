@@ -6,6 +6,7 @@ Created on Sun Apr 26 09:35:33 2020
 """
 
 from detector_train import Trainer
+from DSD import DSD
 from FeatureExtraction import get_dataset
 from ptdec.dec import WDEC
 import ptsdae.model as ae
@@ -16,9 +17,7 @@ from torch import nn
 from torch.utils.data import WeightedRandomSampler, TensorDataset, DataLoader
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
-
-
-from WDEC_train import train
+from WDEC_train import train, DataSetExtract, PotentialScores
 
 
 
@@ -27,6 +26,7 @@ from WDEC_train import train
 # get dataset and dataloader
 data_path    = sys.argv[1] # '../../data/region_proposals'
 batch_size   = 256
+batch_num    = 100
 label        = sys.argv[2] # 'bike'
 ds_train     = get_dataset(data_path, label)
 ds_train.output = 1
@@ -158,7 +158,7 @@ for epoch in range(MAX_EPOCHS):
     
     # Train a region classifier with sampled positive and negative regions 
     # get all data needed to compute the potential scores.
-    features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
+    features, actual, idxs, boxs, videos, frames = DataSetExtract(ds_train, wdec)
     feature_list  = []
     video_list    = []
     label_list    = []
