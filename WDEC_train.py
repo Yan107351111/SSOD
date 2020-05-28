@@ -337,8 +337,10 @@ def train(dataset: torch.utils.data.Dataset,
         with torch.no_grad():
             # initialise the cluster centers
             wdec.state_dict()['assignment.cluster_centers'].copy_(cluster_centers)
-            wdec.state_dict()['assignment.cluster_predicted'].copy_(predicted_idxed)
-            wdec.state_dict()['assignment.cluster_positive_ratio'].copy_(cpr)
+            # wdec.state_dict()['assignment.cluster_predicted'].copy_(predicted_idxed)
+            # wdec.state_dict()['assignment.cluster_positive_ratio'].copy_(cpr)
+            wdec.assignment.cluster_predicted = predicted_idxed.clone()
+            wdec.assignment.cluster_positive_ratio = cpr.clone()
             
     loss_function = nn.KLDivLoss(size_average=False)
     delta_label = None
