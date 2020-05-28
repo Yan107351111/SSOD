@@ -99,7 +99,7 @@ wdec = WDEC(
     encoder          = autoencoder.encoder,
     positive_ratio_threshold = P_k,
 )
-detector = nn.sequential(
+detector = nn.Sequential(
     [nn.linear(embedded_dim, 1024), 
      nn.ReLU(),
      nn.linear(1024, 1024),
