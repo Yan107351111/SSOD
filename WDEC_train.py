@@ -38,6 +38,7 @@ def SSKMeans(
         boxs: torch.tensor,
         videos: torch.tensor,
         frames: torch.tensor,
+        eps: float = 1e-5,
     ):
     '''
     
@@ -105,14 +106,18 @@ def SSKMeans(
         ) 
         if (sample_weights!=sample_weights).any():
             raise ValueError(f'Self similarity test failure 0\nsample_weights = {sample_weights}')
+        if torch.isinf(sample_weights).any():
+            raise ValueError(f'Inf detected at\n0 sample_weights = {sample_weights}')
         sample_weights[DCD_count>0] /= DCD_count[DCD_count>0] 
         if (sample_weights!=sample_weights).any():
             raise ValueError(f'Self similarity test failure 1\n'
                              f'sample_weights = {sample_weights}'
                              f'DCD_count = {DCD_count}')
+        if torch.isinf(sample_weights).any():
+            raise ValueError(f'Inf detected at\n1 sample_weights = {sample_weights}')
         _, pred_idx    = wdec.assignment.cluster_predicted[:,0].sort()
         custer_idx     = wdec.assignment.cluster_predicted[pred_idx,1].long()
-        sample_weights = sample_weights[custer_idx]
+        sample_weights = sample_weights[custer_idx]+eps
         # TODO: find out what "normalized by the number of positive samples
         # in the cluster defined by DSD" means (question no.10 in notebook)
     else: sample_weights = None
@@ -120,6 +125,8 @@ def SSKMeans(
     ## Re-initialize cluster centers using Weighted K-Means
     # print('\n\n\n')
     # print(f'sample_weights = {sample_weights}')
+    # print('\n\n\n')
+    # print(f'features = {features}')
     # print('\n\n\n')
     predicted = kmeans.fit_predict(
         features.numpy(),

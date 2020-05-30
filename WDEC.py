@@ -186,7 +186,7 @@ for epoch in range(MAX_EPOCHS):
     potential_scores = PotentialScores(
         feature_list, video_list, label_list,
     ) 
-    potential_scores /= DCD_count
+    potential_scores[DCD_count>0] /= DCD_count[DCD_count>0]
     
     pred_idxs = wdec.assignment.cluster_predicted[:,0].clone()
     _, pred_idxs = pred_idxs.sort()
