@@ -70,8 +70,8 @@ class WeightedClusterAssignment(nn.Module):
         super(WeightedClusterAssignment, self).__init__()
         self.embedding_dimension = embedding_dimension
         self.cluster_number = cluster_number
-        self.positive_ratio_threshold = positive_ratio_threshold
-        self.alpha = alpha
+        self.positive_ratio_threshold = Parameter(torch.tensor(positive_ratio_threshold))
+        self.alpha = Parameter(torch.tensor(alpha))
         if cluster_centers is None:
             initial_cluster_centers = torch.zeros(
                 self.cluster_number,
@@ -95,11 +95,19 @@ class WeightedClusterAssignment(nn.Module):
         :param idx: FloatTensor of size [batch size]
         :return: FloatTensor [batch size, number of clusters]
         """
-        
-        norm_squared = torch.sum((batch.unsqueeze(1) - self.cluster_centers) ** 2, 2)
+        # print('\n\n\n')
+        # print(f'batch.unsqueeze(1).shape = {batch.unsqueeze(1).shape}')
+        # print(f'self.cluster_centers.shape = {self.cluster_centers.shape}')
+        # print(f'self.weights(labels, idx).shape = {self.weights(labels, idx).shape}')
+        # print('\n\n\n')
+        norm_squared = torch.sum(
+            (batch.unsqueeze(1) - self.cluster_centers) ** 2
+            * self.weights(labels, idx).reshape(-1,1,1),
+            2
+        )
         numerator = 1.0 / (1.0 + (norm_squared / self.alpha))
         power = float(self.alpha + 1) / 2
-        numerator = numerator**power * self.weights(labels, idx)
+        numerator = numerator**power 
         return numerator / torch.sum(numerator, dim=1, keepdim=True)
     
     def weights(self, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
@@ -110,17 +118,44 @@ class WeightedClusterAssignment(nn.Module):
         :param idx: FloatTensor of size [batch size]
         :return: FloatTensor [batch size, number of clusters]
         '''
+        
         if self.cluster_positive_ratio is None:
             return None
-        positive_clusters = self.cluster_positive_ratio[self.cluster_predicted[idx]] > self.positive_ratio_threshold
+        
+        _, indices = self.cluster_predicted[:,0].sort()
+        predictions = self.cluster_predicted[:,1][indices][idx]
+        ratios = self.cluster_positive_ratio[predictions.long()]
+        positive_clusters = ratios > self.positive_ratio_threshold
         # compute the weights according to the labels.
         weights = (0.5*(labels==0).float() + (labels==1).float())
+        
+        # print('\n\n\n')
+        # print(f'self.cluster_predicted.device = {self.cluster_predicted.device}')
+        # print(f'self.cluster_positive_ratio.device = {self.cluster_positive_ratio.device}')
+        # print(f'self.positive_ratio_threshold.device = {self.positive_ratio_threshold.device}')
+        # print(f'predictions.device = {predictions.device}')
+        # print(f'ratios.device = {ratios.device}')
+        # print(f'positive_clusters.device = {positive_clusters.device}')
+        # print(f'weights.device = {weights.device}')
+        # print('\n\n\n')
+        
         # only apply to positive ratio clusters.
         weights *= positive_clusters.float()
         # set "weight" to 1 for all other clusters
         weights += (positive_clusters==0).float()
         return weights
-    
+        
+    def __setattr__(self, name, value, *args, **kwargs):
+        if name in ['cluster_predicted', 'cluster_positive_ratio',]:
+            # print(f'setting attribute {name} : {type(value)}')
+            if value is None:
+                self.__dict__[name] = value
+            else:
+                self.__dict__[name] = Parameter(
+                    torch.tensor(value, dtype = float,)
+                ).to(next(self.parameters()).device)
+        else:
+            super().__setattr__(name, value)
 """
     def samples_distribution(self, batch: Tuple[torch.Tensor], PotentialScores: torch.Tensor) -> torch.Tensor:
         '''

@@ -66,6 +66,10 @@ def SSKMeans(
     kmeans : KMeans
         DESCRIPTION.
     '''
+    # print('\n\n\n')
+    # print('performing KMeans')
+    # print('\n\n\n')
+    
     kmeans = KMeans(n_clusters=wdec.cluster_number, n_init=20)
     # compute the weighted K-Means sample weights using potential scores and
     # DSD
@@ -82,8 +86,11 @@ def SSKMeans(
         frames        = frames[indices]
         DCD_count     = torch.zeros((K,))
         for C in range(K):
+            #print('\n\n\n')
+            #print(f'wdec.assignment.cluster_predicted.shape = {wdec.assignment.cluster_predicted}')
+            #print('\n\n\n')
             C_bool = wdec.assignment.cluster_predicted[:,1]==C
-            C_inds = wdec.assignment.cluster_predicted[:,0][C_bool]
+            C_inds = wdec.assignment.cluster_predicted[:,0][C_bool].long()
             feature_list.append(features[C_inds])
             video_list.append(videos[C_inds])
             label_list.append(actual[C_inds])
@@ -96,12 +103,24 @@ def SSKMeans(
         sample_weights = PotentialScores(
             feature_list, video_list, label_list,
         ) 
-        sample_weights /= DCD_count 
+        if (sample_weights!=sample_weights).any():
+            raise ValueError(f'Self similarity test failure 0\nsample_weights = {sample_weights}')
+        sample_weights[DCD_count>0] /= DCD_count[DCD_count>0] 
+        if (sample_weights!=sample_weights).any():
+            raise ValueError(f'Self similarity test failure 1\n'
+                             f'sample_weights = {sample_weights}'
+                             f'DCD_count = {DCD_count}')
+        _, pred_idx    = wdec.assignment.cluster_predicted[:,0].sort()
+        custer_idx     = wdec.assignment.cluster_predicted[pred_idx,1].long()
+        sample_weights = sample_weights[custer_idx]
         # TODO: find out what "normalized by the number of positive samples
         # in the cluster defined by DSD" means (question no.10 in notebook)
     else: sample_weights = None
-    print(features.shape)
+    #print(features.shape)
     ## Re-initialize cluster centers using Weighted K-Means
+    # print('\n\n\n')
+    # print(f'sample_weights = {sample_weights}')
+    # print('\n\n\n')
     predicted = kmeans.fit_predict(
         features.numpy(),
         sample_weight = sample_weights, # model.assignment.weights(actual, idxs),
@@ -148,7 +167,7 @@ def ReInitKMeans(wdec, data_iterator): # TODO: finish function and put in train 
 
 def DataSetExtract(
         dataset: torch.utils.data.Dataset,
-        wdec: torch.nn.Module,
+        wdec: torch.nn.Module = None,
         silent: bool = False,
         batch_size: int = 512,
         collate_fn = default_collate,
@@ -234,7 +253,10 @@ def DataSetExtract(
         else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
         if cuda:
             batch = batch.cuda(non_blocking = True)
-        features.append(wdec.encoder(batch).detach().cpu())
+        if wdec is not None:
+            features.append(wdec.encoder(batch).detach().cpu())
+        else:
+            features.append(batch)
     features  = torch.cat(features)
     actual    = torch.cat(actual).long()
     idxs      = torch.cat(idxs).long()
@@ -341,7 +363,19 @@ def train(dataset: torch.utils.data.Dataset,
             # wdec.state_dict()['assignment.cluster_positive_ratio'].copy_(cpr)
             wdec.assignment.cluster_predicted = predicted_idxed.clone()
             wdec.assignment.cluster_positive_ratio = cpr.clone()
-            
+    else:
+      predicted, actual = predict(
+            dataset,
+            wdec,
+            batch_size=evaluate_batch_size,
+            collate_fn=collate_fn,
+            silent=True,
+            return_actual=True,
+            cuda=cuda
+        )
+      predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
+      _, accuracy = cluster_accuracy(predicted.cpu().numpy(), actual.cpu().numpy())
+        
     loss_function = nn.KLDivLoss(size_average=False)
     delta_label = None
     for epoch in range(epochs):
@@ -360,18 +394,20 @@ def train(dataset: torch.utils.data.Dataset,
         )
         wdec.train()
         for index, batch in enumerate(data_iterator):
-            if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) == 2:
-                batch, _ = batch  # if we have a prediction label, strip it away
+            if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) == 6:
+                batch, actual, idxs, _, _, _ = batch  # if we have a prediction label, strip it away
             if cuda:
-                batch = batch.cuda(non_blocking=True)
-            output = wdec(batch)
+                batch  = batch.cuda(non_blocking=True)
+                actual = actual.cuda()
+                idxs   = idxs.cuda()
+            output = wdec(batch, actual, idxs,)
             target = target_distribution(output).detach()
-            loss = loss_function(output.log(), target) / output.shape[0]
+            loss   = loss_function(output.log(), target) / output.shape[0]
             data_iterator.set_postfix(
-                epo=epoch,
-                acc='%.4f' % (accuracy or 0.0),
-                lss='%.8f' % float(loss.item()),
-                dlb='%.4f' % (delta_label or 0.0),
+                epo = epoch,
+                acc = '%.4f' % (accuracy or 0.0),
+                lss = '%.8f' % float(loss.item()),
+                dlb = '%.4f' % (delta_label or 0.0),
             )
             optimizer.zero_grad()
             loss.backward()
@@ -411,6 +447,59 @@ def train(dataset: torch.utils.data.Dataset,
         )
         if epoch_callback is not None:
             epoch_callback(epoch, wdec)
+
+
+def predict(dataset: torch.utils.data.Dataset,
+            model: torch.nn.Module,
+            batch_size: int = 1024,
+            collate_fn = default_collate,
+            cuda: bool = True,
+            silent: bool = False,
+            return_actual: bool = False) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    """
+    Predict clusters for a dataset given a DEC model instance and various configuration parameters.
+
+    :param dataset: instance of Dataset to use for training
+    :param model: instance of DEC model to predict
+    :param batch_size: size of the batch to predict with, default 1024
+    :param collate_fn: function to merge a list of samples into mini-batch
+    :param cuda: whether CUDA is used, defaults to True
+    :param silent: set to True to prevent printing out summary statistics, defaults to False
+    :param return_actual: return actual values, if present in the Dataset
+    :return: tuple of prediction and actual if return_actual is True otherwise prediction
+    """
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        shuffle=False
+    )
+    data_iterator = tqdm(
+        dataloader,
+        leave=True,
+        unit='batch',
+        disable=silent,
+    )
+    features = []
+    actual = []
+    model.eval()
+    for batch in data_iterator:
+        if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) == 6:
+            batch, value, idxs, _, _, _ = batch  # unpack if we have a prediction label
+            if return_actual:
+                actual.append(value)
+        elif return_actual:
+            raise ValueError('Dataset has no actual value to unpack, but return_actual is set.')
+        if cuda:
+            batch = batch.cuda(non_blocking=True)
+            value = value.cuda()
+            idxs   = idxs.cuda()            
+        features.append(model(batch, value, idxs,).detach().cpu())  # move to the CPU to prevent out of memory on the GPU
+    if return_actual:
+        return torch.cat(features).max(1)[1], torch.cat(actual).long()
+    else:
+        return torch.cat(features).max(1)[1]
+
 
 
 '''

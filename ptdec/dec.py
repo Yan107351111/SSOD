@@ -60,13 +60,14 @@ class WDEC(nn.Module):
         self.alpha = alpha
         self.assignment = WeightedClusterAssignment(cluster_number, self.hidden_dimension, positive_ratio_threshold, alpha)
 
-    def forward(self, batch: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def forward(self, batch: torch.Tensor, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
         """
         Compute the cluster assignment using the ClusterAssignment after running the batch
         through the encoder part of the associated AutoEncoder module.
 
         :param batch: [batch size, embedding dimension] FloatTensor
-        :param labels: [batch size, label] FloatTensor
+        :param labels: [batch size,] FloatTensor
+        :param idx: [batch size,] FloatTensor
         :return: [batch size, number of clusters] FloatTensor
         """
-        return self.assignment(self.encoder(batch, labels))
+        return self.assignment(self.encoder(batch), labels, idx)

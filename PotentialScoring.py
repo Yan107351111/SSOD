@@ -6,7 +6,7 @@ Created on Sun Apr 26 09:36:01 2020
 """
 import torch
 
-def Var_multiDim(points):
+def Var_multiDim(points, eps = 1e-5):
     '''
     compute the cluster distance variance of a cluster of points.
 
@@ -24,9 +24,10 @@ def Var_multiDim(points):
 
     '''
     N   = len(points)
+    if N<2: return torch.tensor(1/eps)
     M1  = torch.mean(points, dim = 0)
     SEs = torch.norm(points-M1, 2, dim = -1)**2
-    V   = 1/(N-1)*torch.sum(SEs, dim = -1)
+    V   = 1/(N-1)*torch.sum(SEs, dim = -1)+eps
     return V
 
 def Unique(samples):
@@ -51,7 +52,7 @@ def Unique(samples):
     U = torch.sum(sorted_diff, -1)+1
     return U
 
-def PotentialScores(features, videos, labels, tau = 50, eps = 1e-7):
+def PotentialScores(features, videos, labels, tau = 50, eps = 1e-5):
     '''
     compute the potential scores of the given clusters.
     
@@ -84,6 +85,14 @@ def PotentialScores(features, videos, labels, tau = 50, eps = 1e-7):
     V_k = torch.tensor([Var_multiDim(feature).float() for feature in features])
     potentials = tau * P_k**2 * torch.log(U_k) / (V_k + eps)
     S =  torch.softmax(potentials, 0)
+    if (P_k!=P_k).any():
+        raise ValueError(f'Self similarity test failure:\nP_k = {P_k}')
+    if (U_k!=U_k).any():
+        raise ValueError(f'Self similarity test failure:\nU_k = {U_k}')
+    if (V_k!=V_k).any():
+        raise ValueError(f'Self similarity test failure:\nV_k = {V_k}')
+    if (S!=S).any():
+        raise ValueError(f'Self similarity test failure:\nS = {S}')
     return S
 
 

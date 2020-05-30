@@ -128,9 +128,11 @@ dec_optimizer = SGD(wdec.parameters(), lr=0.01, momentum=0.9)
 det_optimizer = Adam(detector.parameters(), lr=1e-4)
 # The learning rate is decreased by a factor of 0.6 every 6 epochs
 scheduler = StepLR(det_optimizer, step_size = 6, gamma = 0.6)
+def loss(y_hat, y_true):
+    return nn.CrossEntropyLoss()(y_hat, y_true.long())
 det_trainer = DetectorTrainer(
     model = detector,
-    loss_fn = nn.CrossEntropyLoss(),
+    loss_fn = loss,
     optimizer = det_optimizer,
     scheduler = scheduler,
     device = 'cuda' if cuda else 'cpu',
@@ -153,7 +155,7 @@ for epoch in range(MAX_EPOCHS):
     
     # Train a region classifier with sampled positive and negative regions 
     # get all data needed to compute the potential scores.
-    features, actual, idxs, boxs, videos, frames = DataSetExtract(ds_train, wdec)
+    features, actual, idxs, boxs, videos, frames = DataSetExtract(ds_train)
     feature_list  = []
     video_list    = []
     label_list    = []
@@ -168,17 +170,17 @@ for epoch in range(MAX_EPOCHS):
     DCD_idxs      = []
     for C in range(K):
         C_bool = wdec.assignment.cluster_predicted[:,1]==C
-        C_inds = wdec.assignment.cluster_predicted[:,0][C_bool]
+        C_inds = wdec.assignment.cluster_predicted[:,0][C_bool].long()
         feature_list.append(features[C_inds])
         video_list.append(videos[C_inds])
         label_list.append(actual[C_inds])
         video_frames = videos[C_inds]*10000 + frames[C_inds]
         ## Run DSD
-        dsd = DSD(boxs[C_inds], video_frames)
+        dsd = DSD(boxs[C_inds], video_frames).long()
         DCD_idxs.append(idxs[C_inds][dsd])
         DCD_count[C] = len(dsd)
-        
-    positive_idxs = torch.cat(DCD_idxs).int()
+    
+    positive_idxs = torch.cat(DCD_idxs).long()
     ## Compute the potential score Sk in (1) for each cluster
     ## set τ = 50
     potential_scores = PotentialScores(
@@ -188,12 +190,17 @@ for epoch in range(MAX_EPOCHS):
     
     pred_idxs = wdec.assignment.cluster_predicted[:,0].clone()
     _, pred_idxs = pred_idxs.sort()
-    pred_DCD_idxs = pred_idxs[DCD_idxs]
-    dcd_sample_scores = potential_scores[wdec.assignment.cluster_predicted[pred_DCD_idxs,1]]
+    # print('\n\n\n')
+    # print(f'pred_idxs = {pred_idxs}')
+    # print('\n\n\n')
+    # print(f'DCD_idxs = {DCD_idxs}')
+    # print('\n\n\n')
+    pred_DCD_idxs = pred_idxs[positive_idxs].long()
+    dcd_sample_scores = potential_scores[wdec.assignment.cluster_predicted[pred_DCD_idxs,1].long()]
     
     # samples from DSD labeled as positive detections
     # all other samples labeled as negatives
-    labels = torch.zeros((len(ds_train),))
+    labels = torch.zeros((len(ds_train),),)
     labels[positive_idxs] = 1
     # set the sample distribution to uniform over the negative samples 
     # and weighed by the normalized potential scores over the DSD samples.
@@ -212,7 +219,7 @@ for epoch in range(MAX_EPOCHS):
         batch_size = batch_size,
         sampler    = sampler_det,
     )
-    det_trainer.fit(dl_det, num_epochs = 1)
+    det_trainer.fit(dl_det, num_epochs = 1, start_epoch = epoch)
     
     
     

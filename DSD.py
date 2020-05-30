@@ -155,6 +155,11 @@ def get_graph(bbs, egdes_threshold = 0.5):
     # compute all graph edges
     bb0s = bbs[[i for j in [[k,]*(N-1-k) for k in range(N)] for i in j]]
     bb1s = bbs[[i for j in range(1,N) for i in range(j,N)]]
+    # print('\n\n\n')
+    # print(bb0s)
+    # print('\n\n\n')
+    # # print(bb1s)
+    # print('\n\n\n')
     egdes = get_iou(bb0s, bb1s) >= egdes_threshold
     # update graph
     s = 0
@@ -211,12 +216,23 @@ def DSD(bbs, frames):
                 a vector of the indices of the bounding boxed chosen as
                 vertices in the dense subgraphs.
     '''
+    # print(bbs)
     frame_sets = torch.tensor(list(set(frames.tolist())))
     indices    = torch.arange(len(frames))
     DSs        = torch.tensor([])
     for frame in frame_sets:
         # fetch the bounding boxed in the frame
         bbs_frm = bbs[frames==frame]
+        if len(bbs_frm)==0:
+            continue
+        if len(bbs_frm)==1:
+            DSs = torch.cat((DSs.float(), indices[frames==frame].clone().float())) 
+            continue
+        # print('\n\n\n')
+        # print(f'len(bbs_frm) = {len(bbs_frm)}')
+        # print('\n\n\n')
+        # print(f'bbs_frm = {bbs_frm}')
+        # print('\n\n\n')
         graph = get_graph(bbs_frm)
         DS  = DSDiscover(graph, keys = indices[frames==frame])
         DSs = torch.cat((DSs.to(DS.dtype), DS)) 

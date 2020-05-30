@@ -50,7 +50,7 @@ class Trainer(abc.ABC):
 
     def fit(self, dl_train: DataLoader, dl_test: DataLoader = None,
             num_epochs = 100, checkpoints: str = None,
-            early_stopping: int = 25, 
+            early_stopping: int = 25,  start_epoch: int = 0,
             print_every = 1, post_epoch_fn=None, never_print = False,
             **kw) -> FitResult:
         """
@@ -87,7 +87,7 @@ class Trainer(abc.ABC):
                     saved_state.get('ewi', epochs_without_improvement)
                 self.model.load_state_dict(saved_state['model_state'])
 
-        for epoch in range(num_epochs):
+        for epoch in range(start_epoch, num_epochs+start_epoch):
             save_checkpoint = False
             verbose = False  # pass this to train/test_epoch.
             if epoch % print_every == 0 or epoch == num_epochs - 1:
@@ -254,38 +254,51 @@ class DetectorTrainer(Trainer):
         # ========================
         return super().train_epoch(dl_train, **kw)
 
-    def test_epoch(self, dl_test: DataLoader, **kw):
+    def test_epoch(self, dl_test: DataLoader, **kw,):
         # TODO: Implement modifications to the base method, if needed.
         # ====== YOUR CODE: ======
         # raise NotImplementedError()
         # ========================
-        return super().test_epoch(dl_test, **kw)
+        return super().test_epoch(dl_test, **kw,)
 
     def train_batch(self, batch, **kw) -> BatchResult:
         x, y = batch
-        x    = x.to(self.device, dtype=torch.float)  
-        y    = y.to(self.device, dtype=torch.float)
+        x    = x.to(self.device, dtype=torch.float,)  
+        y    = y.to(self.device, dtype=torch.float,)
         
         self.optimizer.zero_grad()
-        y_hat = self.model(x)
-        loss  = self.loss_fn(y, y_hat)
+        y_hat = self.model(x,)
+        
+        # print('\n\n\n')
+        # print(f'y.shape = {y.shape}')
+        # print('\n\n\n')
+        # print(f'y_hat.shape = {y_hat.shape}')
+        # print('\n\n\n')
+        
+        loss  = self.loss_fn(y_hat, y,)
         
         loss.backward()
             
         self.optimizer.step()
+        
+        y_pred      = torch.argmax(y_hat, dim = -1)
+        num_correct = torch.sum(y==y_pred)
 
-        return BatchResult(loss.item(), None)
+        return BatchResult(loss.item(), num_correct.item() / len(y))
 
-    def test_batch(self, batch, **kw) -> BatchResult:
+
+    def test_batch(self, batch, **kw,) -> BatchResult:
         x, y = batch
-        x = x.to(self.device, dtype=torch.float)
-        y = y.to(self.device, dtype=torch.float) 
+        x = x.to(self.device, dtype=torch.float,)
+        y = y.to(self.device, dtype=torch.float,) 
 
         with torch.no_grad():
-            y_hat = self.model(x)
-            loss  = self.loss_fn(y, y_hat)
+            y_hat = self.model(x,)
+            loss  = self.loss_fn(y_hat, y,)
+            y_pred      = torch.argmax(y_hat, dim = -1)
+            num_correct = torch.sum(y==y_pred)
 
-        return BatchResult(loss.item(), None)
+        return BatchResult(loss.item(), num_correct.item() / len(y))
 
 
 
