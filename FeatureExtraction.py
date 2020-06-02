@@ -15,7 +15,7 @@ import torch
 import torchvision
 import torchvision.transforms as T
 from torch.utils.data import Dataset
-
+from torchvision.datasets import DatasetFolder
 
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
@@ -141,6 +141,7 @@ class FramesDataset(Dataset):
         self.transform = transform
         self.label     = label
         self.output    = output
+        self.trans_batch = 512
         torch.manual_seed(random_seed)
         self.video_ref   = {}
         self.video_deref = {}
@@ -153,8 +154,7 @@ class FramesDataset(Dataset):
         for i in os.listdir(os.path.join(root_dir, label)):
             img_path = os.path.join(label, i)
             image = plt.imread(os.path.join(self.root_dir,img_path))
-            with torch.no_grad():
-                features = self.transform(image)
+            
             self.all_items.append(img_path)
             self.tensors.append(features)
             video_name = i.split(';')[1]
@@ -199,19 +199,23 @@ class FramesDataset(Dataset):
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
 
+        self.transform()
         
-        
+    def transform(self,):
+        tensors = []
+        for batch, label in :
+            tensors.append(self.transform(batch))
+            
     
     def __len__(self):
         return len(self.all_items)
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
-            idx = idx.tolist()
+            with torch.no_grad():
+                idx = idx.tolist(self.transform(image))
         
         # print(f'getting item {idx} out of {len(self)}')
-        
-        
         item = self.all_items[idx]
         # print(f'item = {item}')
         # img_name = os.path.join(self.root_dir,item)
@@ -282,7 +286,48 @@ def to4D(tensor):
     if len(tensor.shape)==2:
         return tensor.unsqueeze(0).unsqueeze(0)
 
+def 
 
+def get_dataset(data_path, label,):
+    model_name = 'inceptionresnetv2'
+    model = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
+    model.eval()
+    
+    transform = T.Compose(
+            [T.ToTensor(),
+             T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+             to4D,
+             model,])
+
+    train_dataset = DatasetFolder(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+    )
+
+    DatasetFolder
+
+
+if __name__ == '__main__':
+    data_path = sys.argv[1] #'..\data\region_proposals'
+    pass    
+    
+    
+    # inputs, labels = next(iter(train_dataloader))
+    # for label in labels:
+    #     for ll, label in enumerate(train_dataset.classes):
+    #         if ll == train_dataset.class_to_idx: print(label)
+    # print(train_dataset.class_to_idx)
+    
+    
+    
+    
+    
+    
+    
+ """   
 def get_dataset(data_path, label,):
     '''
     TODO:
@@ -319,28 +364,7 @@ def get_dataset(data_path, label,):
     )
     return train_dataset
 
-
-
-
-if __name__ == '__main__':
-    data_path = sys.argv[1] #'..\data\region_proposals'
-    pass    
-    
-    
-    # inputs, labels = next(iter(train_dataloader))
-    # for label in labels:
-    #     for ll, label in enumerate(train_dataset.classes):
-    #         if ll == train_dataset.class_to_idx: print(label)
-    # print(train_dataset.class_to_idx)
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    """
     
     
     
