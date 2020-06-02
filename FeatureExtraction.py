@@ -135,6 +135,131 @@ class FrameRegionProposalsDataset(Dataset):
             return features, label, idx
         return features
         
+        
+def get_dataloader(data_path, batch_size, label):
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    data_path : TYPE
+        DESCRIPTION.
+    batch_size : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    train_dataloader : TYPE
+        DESCRIPTION.
+
+    '''
+    
+    model_name = 'inceptionresnetv2'
+    model = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
+    model.eval()
+    
+    transform = T.Compose(
+        [T.ToTensor(),
+         T.Normalize(mean=[0.485, 0.456, 0.406],
+                     std=[0.229, 0.224, 0.225]),
+         ])
+    train_dataset = FrameRegionProposalsDataset(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+        
+    )
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=batch_size,
+        shuffle=True, num_workers=2)
+    
+    return train_dataloader
+
+def to4D(tensor):
+    # print(tensor.shape)
+    if len(tensor.shape)>3:
+        return tensor
+    if len(tensor.shape)==3:
+        return tensor.unsqueeze(0)
+    if len(tensor.shape)==2:
+        return tensor.unsqueeze(0).unsqueeze(0)
+
+def get_dataset(data_path, label,):
+    
+    transform = T.Compose(
+            [T.ToTensor(),
+             T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+             ])
+
+    train_dataset = FrameRegionProposalsDataset(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+    )
+
+    DatasetFolder
+
+
+if __name__ == '__main__':
+    data_path = sys.argv[1] #'..\data\region_proposals'
+    pass    
+    
+    
+    # inputs, labels = next(iter(train_dataloader))
+    # for label in labels:
+    #     for ll, label in enumerate(train_dataset.classes):
+    #         if ll == train_dataset.class_to_idx: print(label)
+    # print(train_dataset.class_to_idx)
+    
+    
+    
+    
+    
+    
+    
+"""   
+def get_dataset(data_path, label,):
+    '''
+    TODO:
+
+    Parameters
+    ----------
+    data_path : TYPE
+        DESCRIPTION.
+    label : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    train_dataset : TYPE
+        DESCRIPTION.
+
+    '''
+    model_name = 'inceptionresnetv2'
+    model = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
+    model.eval()
+    
+    transform = T.Compose(
+        [T.ToTensor(),
+         T.Normalize(mean=[0.485, 0.456, 0.406],
+                     std=[0.229, 0.224, 0.225]),
+         to4D,
+         model,])
+    
+    train_dataset = FrameRegionProposalsDataset(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+    )
+    return train_dataset
+
+
+
+
+
 class FramesDataset(Dataset):
     def __init__(self, root_dir, label, transform=None, output = 6, random_seed = 0):
         self.root_dir  = root_dir
@@ -235,134 +360,6 @@ class FramesDataset(Dataset):
         if self.output == 3:
             return features, label, idx
         return features 
-        
-def get_dataloader(data_path, batch_size, label):
-    '''
-    TODO:
-
-    Parameters
-    ----------
-    data_path : TYPE
-        DESCRIPTION.
-    batch_size : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    train_dataloader : TYPE
-        DESCRIPTION.
-
-    '''
-    
-    model_name = 'inceptionresnetv2'
-    model = pretrainedmodels.__dict__[model_name](
-        num_classes=1000, pretrained='imagenet')
-    model.eval()
-    
-    transform = T.Compose(
-        [T.ToTensor(),
-         T.Normalize(mean=[0.485, 0.456, 0.406],
-                     std=[0.229, 0.224, 0.225]),
-         to4D,
-         model])
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-        
-    )
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size,
-        shuffle=True, num_workers=2)
-    
-    return train_dataloader
-
-def to4D(tensor):
-    # print(tensor.shape)
-    if len(tensor.shape)>3:
-        return tensor
-    if len(tensor.shape)==3:
-        return tensor.unsqueeze(0)
-    if len(tensor.shape)==2:
-        return tensor.unsqueeze(0).unsqueeze(0)
-
-def 
-
-def get_dataset(data_path, label,):
-    model_name = 'inceptionresnetv2'
-    model = pretrainedmodels.__dict__[model_name](
-        num_classes=1000, pretrained='imagenet')
-    model.eval()
-    
-    transform = T.Compose(
-            [T.ToTensor(),
-             T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-             to4D,
-             model,])
-
-    train_dataset = DatasetFolder(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-    )
-
-    DatasetFolder
-
-
-if __name__ == '__main__':
-    data_path = sys.argv[1] #'..\data\region_proposals'
-    pass    
-    
-    
-    # inputs, labels = next(iter(train_dataloader))
-    # for label in labels:
-    #     for ll, label in enumerate(train_dataset.classes):
-    #         if ll == train_dataset.class_to_idx: print(label)
-    # print(train_dataset.class_to_idx)
-    
-    
-    
-    
-    
-    
-    
- """   
-def get_dataset(data_path, label,):
-    '''
-    TODO:
-
-    Parameters
-    ----------
-    data_path : TYPE
-        DESCRIPTION.
-    label : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    train_dataset : TYPE
-        DESCRIPTION.
-
-    '''
-    model_name = 'inceptionresnetv2'
-    model = pretrainedmodels.__dict__[model_name](
-        num_classes=1000, pretrained='imagenet')
-    model.eval()
-    
-    transform = T.Compose(
-        [T.ToTensor(),
-         T.Normalize(mean=[0.485, 0.456, 0.406],
-                     std=[0.229, 0.224, 0.225]),
-         to4D,
-         model,])
-    
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-    )
-    return train_dataset
 
     """
     

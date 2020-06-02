@@ -342,7 +342,7 @@ def train(dataset: torch.utils.data.Dataset,
     
     if reinitKMeans:
         # get all data needed for KMeans.
-        images, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
+        features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
         # KMeans.
         predicted, kmeans = SSKMeans(
             wdec, features, actual, idxs, boxs, videos, frames

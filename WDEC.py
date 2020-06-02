@@ -8,6 +8,8 @@ Created on Sun Apr 26 09:35:33 2020
 from detector_train import DetectorTrainer
 from DSD import DSD
 from FeatureExtraction import get_dataset
+from model import SSDetector
+import pretrainedmodels
 from ptdec.dec import WDEC
 import ptsdae.model as ae
 from ptsdae.sdae import StackedDenoisingAutoEncoder
@@ -19,9 +21,10 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from WDEC_train import train, DataSetExtract, PotentialScores
 
-
-
-
+model_name = 'inceptionresnetv2'
+feature_extractor = pretrainedmodels.__dict__[model_name](
+    num_classes=1000, pretrained='imagenet')
+feature_extractor.eval()
 
 # get dataset and dataloader
 print('preparing prerequisites')
@@ -43,7 +46,8 @@ ds_val       = None
 embedded_dim = 1000
 autoencoder  = StackedDenoisingAutoEncoder(
         [embedded_dim, 500, 500, 2000, 10],
-        final_activation=None
+        feature_extractor = feature_extractor,
+        final_activation = None,
     )
 if cuda:
     autoencoder.cuda()
@@ -66,14 +70,14 @@ ae_optimizer = SGD(params=autoencoder.parameters(), lr=0.1, momentum=0.9)
 ae.train(
     ds_train,
     autoencoder,
-    cuda=cuda,
-    validation=ds_val,
-    epochs=finetune_epochs,
-    batch_size=batch_size,
-    optimizer=ae_optimizer,
-    scheduler=StepLR(ae_optimizer, 100, gamma=0.1),
-    corruption=0.2,
-    update_callback=training_callback
+    cuda            = cuda,
+    validation      = ds_val,
+    epochs          = finetune_epochs,
+    batch_size      = batch_size,
+    optimizer       = ae_optimizer,
+    scheduler       = StepLR(ae_optimizer, 100, gamma=0.1),
+    corruption      = 0.2,
+    update_callback = training_callback
 )
 
 ds_train.output = 6
@@ -94,9 +98,10 @@ MAX_EPOCHS = 35
 
 print('WDEC stage.')
 wdec = WDEC(
-    cluster_number   = K,
-    hidden_dimension = 10, ### TODO: what is the WDEC architecture they used (question no.5 in notebook)
-    encoder          = autoencoder.encoder,
+    cluster_number    = K,
+    hidden_dimension  = 10, ### TODO: what is the WDEC architecture they used (question no.5 in notebook)
+    feature_extractor = feature_extractor,
+    encoder           = autoencoder.encoder,
     positive_ratio_threshold = P_k,
 )
 
@@ -104,16 +109,8 @@ wdec = WDEC(
 # activation in layers 1-2 and a softmax activation for the output layer
 # Dropout is used for the two hidden layers with probability of 0.8
 # cross-entropy loss function
-detector = nn.Sequential(
-    nn.Linear(embedded_dim, 1024), 
-    nn.ReLU(),
-    nn.Dropout(0.8),
-    nn.Linear(1024, 1024),
-    nn.ReLU(),
-    nn.Dropout(0.8),
-    nn.Linear(1024, 2),
-    nn.Softmax(),
-)
+detector = SSDetector(feature_extractor)
+
 if cuda:
     wdec.cuda()
     detector.cuda()
