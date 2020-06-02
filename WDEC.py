@@ -4,12 +4,12 @@ Created on Sun Apr 26 09:35:33 2020
 
 @author: yan10
 """
-import datetime
+
 from detector_train import DetectorTrainer
 from DSD import DSD
 from FeatureExtraction import get_dataset
-import os
-import pickle
+from model import SSDetector
+import pretrainedmodels
 from ptdec.dec import WDEC
 import ptsdae.model as ae
 from ptsdae.sdae import StackedDenoisingAutoEncoder
@@ -21,9 +21,10 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from WDEC_train import train, DataSetExtract, PotentialScores
 
-
-
-
+model_name = 'inceptionresnetv2'
+feature_extractor = pretrainedmodels.__dict__[model_name](
+    num_classes=1000, pretrained='imagenet')
+feature_extractor.eval()
 
 # get dataset and dataloader
 print('preparing prerequisites')
@@ -32,11 +33,7 @@ batch_size   = 256
 batch_num    = 100
 label        = sys.argv[2] # 'bike'
 print('getting dataset')
-if f"ds_train_{label}.p" in os.listdir(data_path):
-    ds_train = pickle.load(f"ds_train_{label}.p")
-else:
-    ds_train     = get_dataset(data_path, label)
-    pickle.dump( ds_train, open( f"ds_train_{label}.p", "wb" ) )
+ds_train     = get_dataset(data_path, label)
 print('got dataset')
 ds_train.output = 1
 
@@ -49,7 +46,8 @@ ds_val       = None
 embedded_dim = 1000
 autoencoder  = StackedDenoisingAutoEncoder(
         [embedded_dim, 500, 500, 2000, 10],
-        final_activation=None
+        feature_extractor = feature_extractor,
+        final_activation = None,
     )
 if cuda:
     autoencoder.cuda()
@@ -72,14 +70,14 @@ ae_optimizer = SGD(params=autoencoder.parameters(), lr=0.1, momentum=0.9)
 ae.train(
     ds_train,
     autoencoder,
-    cuda=cuda,
-    validation=ds_val,
-    epochs=finetune_epochs,
-    batch_size=batch_size,
-    optimizer=ae_optimizer,
-    scheduler=StepLR(ae_optimizer, 100, gamma=0.1),
-    corruption=0.2,
-    update_callback=training_callback
+    cuda            = cuda,
+    validation      = ds_val,
+    epochs          = finetune_epochs,
+    batch_size      = batch_size,
+    optimizer       = ae_optimizer,
+    scheduler       = StepLR(ae_optimizer, 100, gamma=0.1),
+    corruption      = 0.2,
+    update_callback = training_callback
 )
 
 ds_train.output = 6
@@ -90,7 +88,7 @@ I = 6
 # with the new weights set by Sk normalized by the
 # number of positive samples in the cluster,
 # defined by DSD 
-# We set the positive ratio threshold as Pk ≥ 0.6
+# We set the positive ratio threshold as Pk ? 0.6
 P_k = 0.6
 # Initialize cluster centers using uniform K-Means
 # For clustering, we use K = 50
@@ -100,9 +98,10 @@ MAX_EPOCHS = 35
 
 print('WDEC stage.')
 wdec = WDEC(
-    cluster_number   = K,
-    hidden_dimension = 10, ### TODO: what is the WDEC architecture they used (question no.5 in notebook)
-    encoder          = autoencoder.encoder,
+    cluster_number    = K,
+    hidden_dimension  = 10, ### TODO: what is the WDEC architecture they used (question no.5 in notebook)
+    feature_extractor = feature_extractor,
+    encoder           = autoencoder.encoder,
     positive_ratio_threshold = P_k,
 )
 
@@ -110,16 +109,8 @@ wdec = WDEC(
 # activation in layers 1-2 and a softmax activation for the output layer
 # Dropout is used for the two hidden layers with probability of 0.8
 # cross-entropy loss function
-detector = nn.Sequential(
-    nn.Linear(embedded_dim, 1024), 
-    nn.ReLU(),
-    nn.Dropout(0.8),
-    nn.Linear(1024, 1024),
-    nn.ReLU(),
-    nn.Dropout(0.8),
-    nn.Linear(1024, 2),
-    nn.Softmax(),
-)
+detector = SSDetector(feature_extractor)
+
 if cuda:
     wdec.cuda()
     detector.cuda()
@@ -130,7 +121,7 @@ dec_optimizer = SGD(wdec.parameters(), lr=0.01, momentum=0.9)
 
 '''
 
-# ADAM for optimization with a learning rate of 10−4
+# ADAM for optimization with a learning rate of 10?4
 det_optimizer = Adam(detector.parameters(), lr=1e-4)
 # The learning rate is decreased by a factor of 0.6 every 6 epochs
 scheduler = StepLR(det_optimizer, step_size = 6, gamma = 0.6)
@@ -188,7 +179,7 @@ for epoch in range(MAX_EPOCHS):
     
     positive_idxs = torch.cat(DCD_idxs).long()
     ## Compute the potential score Sk in (1) for each cluster
-    ## set τ = 50
+    ## set ? = 50
     potential_scores = PotentialScores(
         feature_list, video_list, label_list,
     ) 
@@ -227,7 +218,6 @@ for epoch in range(MAX_EPOCHS):
     )
     det_trainer.fit(dl_det, num_epochs = 1, start_epoch = epoch)
     
-pickle.dump( detector, open( f"detector_{label}_{str(datetime.date.today()).replace('-', '_')}.p", "wb" ) )
     
     
     

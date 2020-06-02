@@ -41,6 +41,7 @@ def default_initialise_weight_bias_(weight: torch.Tensor, bias: torch.Tensor, ga
 
 class StackedDenoisingAutoEncoder(nn.Module):
     def __init__(self,
+                 feature_extractor: torch.nn.Module
                  dimensions: List[int],
                  activation: torch.nn.Module = nn.ReLU(),
                  final_activation: Optional[torch.nn.Module] = nn.ReLU(),
@@ -62,6 +63,7 @@ class StackedDenoisingAutoEncoder(nn.Module):
         self.dimensions = dimensions
         self.embedding_dimension = dimensions[0]
         self.hidden_dimension = dimensions[-1]
+        self.feature_extractor = feature_extractor
         # construct the encoder
         encoder_units = build_units(self.dimensions[:-1], activation)
         encoder_units.extend(build_units([self.dimensions[-2], self.dimensions[-1]], None))
@@ -87,5 +89,7 @@ class StackedDenoisingAutoEncoder(nn.Module):
         return self.encoder[index].linear, self.decoder[-(index + 1)].linear
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():
+            batch = self.feature_extractor(batch)
         encoded = self.encoder(batch)
         return self.decoder(encoded)

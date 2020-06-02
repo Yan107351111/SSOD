@@ -15,7 +15,11 @@ import torch
 import torchvision
 import torchvision.transforms as T
 from torch.utils.data import Dataset
+<<<<<<< HEAD
 from tqdm import tqdm
+=======
+from torchvision.datasets import DatasetFolder
+>>>>>>> 8451c9cd18e0471f97a6b06691a3124b556192b8
 
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
@@ -137,15 +141,6 @@ class FrameRegionProposalsDataset(Dataset):
         return features
         
         
-class Label(NamedTuple):
-    '''
-    class holding all training assisting data.
-    '''
-    label: int
-    box: List[int]
-    video: int
-
-
 def get_dataloader(data_path, batch_size, label):
     '''
     TODO:
@@ -170,8 +165,11 @@ def get_dataloader(data_path, batch_size, label):
         [T.ToTensor(),
          T.Normalize(mean=[0.485, 0.456, 0.406],
                      std=[0.229, 0.224, 0.225]),
+<<<<<<< HEAD
          to4D,
          extract_features,
+=======
+>>>>>>> 8451c9cd18e0471f97a6b06691a3124b556192b8
          ])
     train_dataset = FrameRegionProposalsDataset(
         root_dir  = data_path,
@@ -193,6 +191,7 @@ def to4D(tensor):
         return tensor.unsqueeze(0)
     if len(tensor.shape)==2:
         return tensor.unsqueeze(0).unsqueeze(0)
+<<<<<<< HEAD
   
 class extract_features():
     def __init__(self,):
@@ -210,7 +209,44 @@ class extract_features():
             tensor = tensor.cpu()
         with torch.no_grad():
             return self.model()
+=======
 
+def get_dataset(data_path, label,):
+    
+    transform = T.Compose(
+            [T.ToTensor(),
+             T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+             ])
+
+    train_dataset = FrameRegionProposalsDataset(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+    )
+
+    DatasetFolder
+>>>>>>> 8451c9cd18e0471f97a6b06691a3124b556192b8
+
+
+if __name__ == '__main__':
+    data_path = sys.argv[1] #'..\data\region_proposals'
+    pass    
+    
+    
+    # inputs, labels = next(iter(train_dataloader))
+    # for label in labels:
+    #     for ll, label in enumerate(train_dataset.classes):
+    #         if ll == train_dataset.class_to_idx: print(label)
+    # print(train_dataset.class_to_idx)
+    
+    
+    
+    
+    
+    
+    
+"""   
 def get_dataset(data_path, label,):
     '''
     TODO:
@@ -250,25 +286,109 @@ def get_dataset(data_path, label,):
 
 
 
-if __name__ == '__main__':
-    data_path = sys.argv[1] #'..\data\region_proposals'
-    pass    
+
+class FramesDataset(Dataset):
+    def __init__(self, root_dir, label, transform=None, output = 6, random_seed = 0):
+        self.root_dir  = root_dir
+        self.transform = transform
+        self.label     = label
+        self.output    = output
+        self.trans_batch = 512
+        torch.manual_seed(random_seed)
+        self.video_ref   = {}
+        self.video_deref = {}
+        self.all_items   = []
+        self.tensors     = []
+        video_hash = 0
+        assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
+        
+        # creating positive item list
+        for i in os.listdir(os.path.join(root_dir, label)):
+            img_path = os.path.join(label, i)
+            image = plt.imread(os.path.join(self.root_dir,img_path))
+            
+            self.all_items.append(img_path)
+            self.tensors.append(features)
+            video_name = i.split(';')[1]
+            if video_name not in list(self.video_ref):
+                self.video_ref[video_name] = video_hash
+                self.video_deref[video_hash] = video_name
+                video_hash+=1
+                
+        # addign negative items to the list
+        other_labels = [olabel for olabel in os.listdir(root_dir)
+                        if olabel is not label]
+        neg_labels   = torch.randint(len(other_labels), (len(self.all_items),))
+        for neg_label in neg_labels:
+            other_label     = other_labels[neg_label]
+            regions         = os.listdir(os.path.join(root_dir,other_label))
+            neg_region_ind  = torch.randint(len(regions), (1,))
+            neg_region_name = os.listdir(
+                os.path.join(root_dir, other_label))[neg_region_ind]
+            video_name = neg_region_name.split(';')[1]
+            neg_region_name = os.path.join(
+                    other_labels[neg_label],
+                    neg_region_name)
+            while neg_region_name in self.all_items:
+                neg_label       = torch.randint(len(other_labels), (1,))
+                other_label     = other_labels[neg_label]
+                regions         = os.listdir(
+                    os.path.join(root_dir,other_label))
+                neg_region_ind  = torch.randint(len(regions), (1,))
+                neg_region_name = os.listdir(
+                    os.path.join(root_dir, other_label))[neg_region_ind]
+                video_name = neg_region_name.split(';')[1]
+                neg_region_name = os.path.join(
+                    other_labels[neg_label],
+                    neg_region_name)
+            image = plt.imread(os.path.join(self.root_dir,neg_region_name))
+            with torch.no_grad():
+                features = self.transform(image)
+            self.all_items.append(neg_region_name)
+            self.tensors.append(features)
+            if video_name not in list(self.video_ref):
+                self.video_ref[video_name] = video_hash
+                self.video_deref[video_hash] = video_name
+                video_hash+=1
+
+        self.transform()
+        
+    def transform(self,):
+        tensors = []
+        for batch, label in :
+            tensors.append(self.transform(batch))
+            
     
-    
-    # inputs, labels = next(iter(train_dataloader))
-    # for label in labels:
-    #     for ll, label in enumerate(train_dataset.classes):
-    #         if ll == train_dataset.class_to_idx: print(label)
-    # print(train_dataset.class_to_idx)
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    def __len__(self):
+        return len(self.all_items)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            with torch.no_grad():
+                idx = idx.tolist(self.transform(image))
+        
+        # print(f'getting item {idx} out of {len(self)}')
+        item = self.all_items[idx]
+        # print(f'item = {item}')
+        # img_name = os.path.join(self.root_dir,item)
+        # image    = plt.imread(img_name)
+        features = self.tensors[idx].squeeze()
+        # image    = image.reshape(1,*image.shape)
+        label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
+        video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
+        box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
+        frame    = torch.tensor(int(item.split(';')[2]))
+        # if self.transform:
+        #     with torch.no_grad():
+        #         features = self.transform(image)
+                # features.requires_grad = False
+        if self.output == 6:
+            return features, label, idx, box, video, frame
+        if self.output == 3:
+            return features, label, idx
+        return features 
+
+    """
     
     
     
