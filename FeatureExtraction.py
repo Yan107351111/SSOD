@@ -15,12 +15,12 @@ import torch
 import torchvision
 import torchvision.transforms as T
 from torch.utils.data import Dataset
-
+from tqdm import tqdm
 
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
 
-    def __init__(self, root_dir, label, transform=None, output = 4, random_seed = 0):
+    def __init__(self, root_dir, label, transform=None, output = 6, random_seed = 0):
         '''
         TODO:
 
@@ -52,9 +52,9 @@ class FrameRegionProposalsDataset(Dataset):
         self.tensors     = []
         video_hash = 0
         assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
-        
+
         # creating positive item list
-        for i in os.listdir(os.path.join(root_dir, label)):
+        for i in tqdm(os.listdir(os.path.join(root_dir, label)), desc = 'Positive sample collection:'):
             img_path = os.path.join(label, i)
             image = plt.imread(os.path.join(self.root_dir,img_path))
             with torch.no_grad():
@@ -71,7 +71,7 @@ class FrameRegionProposalsDataset(Dataset):
         other_labels = [olabel for olabel in os.listdir(root_dir)
                         if olabel is not label]
         neg_labels   = torch.randint(len(other_labels), (len(self.all_items),))
-        for neg_label in neg_labels:
+        for neg_label in tqdm(neg_labels, desc = 'Negative sample collection:'):
             other_label     = other_labels[neg_label]
             regions         = os.listdir(os.path.join(root_dir,other_label))
             neg_region_ind  = torch.randint(len(regions), (1,))
@@ -102,6 +102,7 @@ class FrameRegionProposalsDataset(Dataset):
                 self.video_ref[video_name] = video_hash
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
+            
         # self.tensors = torch.cat(self.tensors)
         
 
@@ -163,17 +164,15 @@ def get_dataloader(data_path, batch_size, label):
 
     '''
     
-    model_name = 'inceptionresnetv2'
-    model = pretrainedmodels.__dict__[model_name](
-        num_classes=1000, pretrained='imagenet')
-    model.eval()
+    
     
     transform = T.Compose(
         [T.ToTensor(),
          T.Normalize(mean=[0.485, 0.456, 0.406],
                      std=[0.229, 0.224, 0.225]),
          to4D,
-         model])
+         extract_features,
+         ])
     train_dataset = FrameRegionProposalsDataset(
         root_dir  = data_path,
         label     = label,
@@ -194,7 +193,23 @@ def to4D(tensor):
         return tensor.unsqueeze(0)
     if len(tensor.shape)==2:
         return tensor.unsqueeze(0).unsqueeze(0)
-
+  
+class extract_features():
+    def __init__(self,):
+        model_name = 'inceptionresnetv2'
+        model = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
+        self.model = model.eval()
+    
+    def __call__(self, tensor):
+        if torch.cuda.is_available():
+            self.model = self.model.cuda()
+            tensor = tensor.cuda()
+        else:
+            self.model = self.model.cpu()
+            tensor = tensor.cpu()
+        with torch.no_grad():
+            return self.model()
 
 def get_dataset(data_path, label,):
     '''

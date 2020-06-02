@@ -4,10 +4,12 @@ Created on Sun Apr 26 09:35:33 2020
 
 @author: yan10
 """
-
+import datetime
 from detector_train import DetectorTrainer
 from DSD import DSD
 from FeatureExtraction import get_dataset
+import os
+import pickle
 from ptdec.dec import WDEC
 import ptsdae.model as ae
 from ptsdae.sdae import StackedDenoisingAutoEncoder
@@ -30,7 +32,11 @@ batch_size   = 256
 batch_num    = 100
 label        = sys.argv[2] # 'bike'
 print('getting dataset')
-ds_train     = get_dataset(data_path, label)
+if f"ds_train_{label}.p" in os.listdir(data_path):
+    ds_train = pickle.load(f"ds_train_{label}.p")
+else:
+    ds_train     = get_dataset(data_path, label)
+    pickle.dump( ds_train, open( f"ds_train_{label}.p", "wb" ) )
 print('got dataset')
 ds_train.output = 1
 
@@ -221,6 +227,7 @@ for epoch in range(MAX_EPOCHS):
     )
     det_trainer.fit(dl_det, num_epochs = 1, start_epoch = epoch)
     
+pickle.dump( detector, open( f"detector_{label}_{str(datetime.date.today()).replace('-', '_')}.p", "wb" ) )
     
     
     

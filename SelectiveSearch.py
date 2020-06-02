@@ -19,7 +19,7 @@ if __name__ == '__main__':
     DATA_PATH = sys.argv[1]#'..\\..\\data\\example'
     OUT_PATH  = sys.argv[2]#'..\\..\\data\\region_proposals'
     ############ defults
-    N      = 300 # number of reg props
+    N      = 300 # number of region proposals
     SKIP   = 5   # take only SKIP'th proposal
     LABELS = ['bike', 'cup', 'dog', 'drum', 'guitar',
                'gun', 'horse', 'pan', 'plate',

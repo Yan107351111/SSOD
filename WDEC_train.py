@@ -509,7 +509,7 @@ def predict(dataset: torch.utils.data.Dataset,
 
 
 
-'''
+''' # PotentialSampler
 class PotentialSampler(Sampler):
     def __init__(
             self,
