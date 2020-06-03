@@ -217,7 +217,13 @@ def get_dataset(data_path, label,):
         transform = transform,
     )
 
-    DatasetFolder
+    train_dataset = FrameRegionProposalsDataset(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+        
+    )
+    return train_dataset
 
 
 if __name__ == '__main__':

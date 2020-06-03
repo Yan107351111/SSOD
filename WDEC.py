@@ -35,7 +35,7 @@ label        = sys.argv[2] # 'bike'
 print('getting dataset')
 ds_train     = get_dataset(data_path, label)
 print('got dataset')
-ds_train.output = 1
+ds_train.output = 2
 
 # pretrain 
 pretrain_epochs   = 300

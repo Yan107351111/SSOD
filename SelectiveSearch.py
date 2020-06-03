@@ -111,7 +111,9 @@ def selective_search(
                     continue
                 # crop, resize and save
                 crop = image[y:y+h, x:x+w]
-                label = image_name.split(':')[0]
+                label = image_name.split(';')[0]
+                try: os.mkdir(os.path.join(out_path, label))
+                except: pass
                 cv2.imwrite(
                     os.path.join(
                         out_path,
