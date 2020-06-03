@@ -16,7 +16,7 @@ from typing import Union, Tuple
 
 
 def selective_search(
-        data_path: str, out_path: str, label: str,
+        data_path: str, out_path: str, label: str = None,
         region_num: int = 300, region_skip: int = 3, imsize: Union[int, Tuple] = 299,
         min_width: int = 30, min_hight: int = 30, min_size: int = 200):
     '''
@@ -71,31 +71,29 @@ def selective_search(
     assert region_skip>=0
     
     image_names = [image_name
-                   for image_name in os.listdir(DATA_PATH)]
+                   for image_name in os.listdir(data_path)]
     
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
     try:
-        os.mkdir(OUT_PATH)
+        os.mkdir(out_path)
     except:pass
     
-    count_total = len(image_names)
-    count       = 0
-    start_time  = time.time()
+    # count_total = len(image_names)
+    # count       = 0
+    # start_time  = time.time()
     for image_name in tqdm(image_names):
-        count+=1
-        if count%500==0:
-            print(f'runing time:{time.time()-start_time}')
-            print(f'processed: {count}/{count_total}')
-            print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
+        # count+=1
+        # if count%500==0:
+        #     print(f'runing time:{time.time()-start_time}')
+        #     print(f'processed: {count}/{count_total}')
+        #     print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
         # process image for reg props
         image = cv2.imread(os.path.join(DATA_PATH, image_name))
         ss.setBaseImage(image)
         ss.switchToSelectiveSearchFast()
         ssresults = ss.process()
         
-        saved = 0
         ims  = 0
-        
         for init_skip in range(region_skip+1):
             if ims>=region_num:
                     break
@@ -116,7 +114,6 @@ def selective_search(
                 cv2.imwrite(
                     os.path.join(
                         OUT_PATH,
-                        label,
                         f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
                         ),
                     cv2.resize(crop, (imsize, imsize))

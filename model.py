@@ -4,6 +4,7 @@ Created on Tue Jun  2 21:43:52 2020
 
 @author: yan10
 """
+import torch
 from torch import nn
 
 class SSDetector(nn.Module):

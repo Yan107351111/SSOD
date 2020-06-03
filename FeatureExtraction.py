@@ -15,11 +15,8 @@ import torch
 import torchvision
 import torchvision.transforms as T
 from torch.utils.data import Dataset
-<<<<<<< HEAD
 from tqdm import tqdm
-=======
 from torchvision.datasets import DatasetFolder
->>>>>>> 8451c9cd18e0471f97a6b06691a3124b556192b8
 
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
@@ -165,11 +162,8 @@ def get_dataloader(data_path, batch_size, label):
         [T.ToTensor(),
          T.Normalize(mean=[0.485, 0.456, 0.406],
                      std=[0.229, 0.224, 0.225]),
-<<<<<<< HEAD
          to4D,
          extract_features,
-=======
->>>>>>> 8451c9cd18e0471f97a6b06691a3124b556192b8
          ])
     train_dataset = FrameRegionProposalsDataset(
         root_dir  = data_path,
@@ -191,7 +185,6 @@ def to4D(tensor):
         return tensor.unsqueeze(0)
     if len(tensor.shape)==2:
         return tensor.unsqueeze(0).unsqueeze(0)
-<<<<<<< HEAD
   
 class extract_features():
     def __init__(self,):
@@ -209,7 +202,6 @@ class extract_features():
             tensor = tensor.cpu()
         with torch.no_grad():
             return self.model()
-=======
 
 def get_dataset(data_path, label,):
     
@@ -226,7 +218,6 @@ def get_dataset(data_path, label,):
     )
 
     DatasetFolder
->>>>>>> 8451c9cd18e0471f97a6b06691a3124b556192b8
 
 
 if __name__ == '__main__':
