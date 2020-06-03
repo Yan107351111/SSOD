@@ -50,18 +50,13 @@ class FrameRegionProposalsDataset(Dataset):
         self.video_ref   = {}
         self.video_deref = {}
         self.all_items   = []
-        self.tensors     = []
         video_hash = 0
         assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
 
         # creating positive item list
         for i in tqdm(os.listdir(os.path.join(root_dir, label)), desc = 'Positive sample collection:'):
             img_path = os.path.join(label, i)
-            image = plt.imread(os.path.join(self.root_dir,img_path))
-            with torch.no_grad():
-                features = self.transform(image)
             self.all_items.append(img_path)
-            self.tensors.append(features)
             video_name = i.split(';')[1]
             if video_name not in list(self.video_ref):
                 self.video_ref[video_name] = video_hash
@@ -94,17 +89,13 @@ class FrameRegionProposalsDataset(Dataset):
                 neg_region_name = os.path.join(
                     other_labels[neg_label],
                     neg_region_name)
-            image = plt.imread(os.path.join(self.root_dir,neg_region_name))
-            with torch.no_grad():
-                features = self.transform(image)
             self.all_items.append(neg_region_name)
-            self.tensors.append(features)
             if video_name not in list(self.video_ref):
                 self.video_ref[video_name] = video_hash
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
             
-        # self.tensors = torch.cat(self.tensors)
+        
         
 
     def __len__(self):
@@ -119,9 +110,9 @@ class FrameRegionProposalsDataset(Dataset):
         
         item = self.all_items[idx]
         # print(f'item = {item}')
-        # img_name = os.path.join(self.root_dir,item)
-        # image    = plt.imread(img_name)
-        features = self.tensors[idx].squeeze()
+        img_name = os.path.join(self.root_dir,item)
+        image    = self.transform(plt.imread(img_name))
+        
         # image    = image.reshape(1,*image.shape)
         label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
@@ -132,10 +123,12 @@ class FrameRegionProposalsDataset(Dataset):
         #         features = self.transform(image)
                 # features.requires_grad = False
         if self.output == 6:
-            return features, label, idx, box, video, frame
+            return image, label, idx, box, video, frame
         if self.output == 3:
-            return features, label, idx
-        return features
+            return image, label, idx
+        if self.output == 2:
+            return image, label
+        return image
         
         
 def get_dataloader(data_path, batch_size, label):
@@ -162,8 +155,6 @@ def get_dataloader(data_path, batch_size, label):
         [T.ToTensor(),
          T.Normalize(mean=[0.485, 0.456, 0.406],
                      std=[0.229, 0.224, 0.225]),
-         to4D,
-         extract_features,
          ])
     train_dataset = FrameRegionProposalsDataset(
         root_dir  = data_path,
@@ -215,13 +206,6 @@ def get_dataset(data_path, label,):
         root_dir  = data_path,
         label     = label,
         transform = transform,
-    )
-
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-        
     )
     return train_dataset
 

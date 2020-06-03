@@ -29,7 +29,7 @@ feature_extractor.eval()
 # get dataset and dataloader
 print('preparing prerequisites')
 data_path    = sys.argv[1] # '../../data/region_proposals'
-batch_size   = 256
+batch_size   = 64
 batch_num    = 100
 label        = sys.argv[2] # 'bike'
 print('getting dataset')
@@ -45,8 +45,8 @@ cuda         = torch.cuda.is_available()
 ds_val       = None
 embedded_dim = 1000
 autoencoder  = StackedDenoisingAutoEncoder(
-        [embedded_dim, 500, 500, 2000, 10],
         feature_extractor = feature_extractor,
+        dimensions = [embedded_dim, 500, 500, 2000, 10],
         final_activation = None,
     )
 if cuda:

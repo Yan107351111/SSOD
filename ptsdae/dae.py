@@ -7,6 +7,7 @@ from typing import Optional
 
 class DenoisingAutoencoder(nn.Module):
     def __init__(self,
+                 feature_extractor: torch.nn.Module,    
                  embedding_dimension: int,
                  hidden_dimension: int,
                  activation: Optional[torch.nn.Module] = nn.ReLU(),
@@ -24,6 +25,7 @@ class DenoisingAutoencoder(nn.Module):
         :param tied: whether the autoencoder weights are tied, defaults to False
         """
         super(DenoisingAutoencoder, self).__init__()
+        self.feature_extractor = feature_extractor        
         self.embedding_dimension = embedding_dimension
         self.hidden_dimension = hidden_dimension
         self.activation = activation
@@ -85,4 +87,6 @@ class DenoisingAutoencoder(nn.Module):
         return F.linear(batch, self.decoder_weight, self.decoder_bias)
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():        
+            batch = self.feature_extractor(batch)    
         return self.decode(self.encode(batch))
