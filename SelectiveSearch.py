@@ -88,7 +88,7 @@ def selective_search(
         #     print(f'processed: {count}/{count_total}')
         #     print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
         # process image for reg props
-        image = cv2.imread(os.path.join(DATA_PATH, image_name))
+        image = cv2.imread(os.path.join(data_path, image_name))
         ss.setBaseImage(image)
         ss.switchToSelectiveSearchFast()
         ssresults = ss.process()
@@ -113,10 +113,10 @@ def selective_search(
                 crop = image[y:y+h, x:x+w]
                 cv2.imwrite(
                     os.path.join(
-                        OUT_PATH,
+                        out_path,
                         f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
                         ),
-                    cv2.resize(crop, (imsize, imsize))
+                    cv2.resize(crop, imsize, interpolation = cv2.INTER_AREA)
                     )
                 ims+=1            
                 skip+=1

@@ -1,374 +1,208 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Apr 26 09:33:57 2020
+Created on Sat Apr 25 18:28:55 2020
 
 @author: yan10
 """
-from typing import NamedTuple, List
-import io
-from matplotlib import pyplot as plt
+import cv2
 import os
-import pretrainedmodels
+import pickle
 import sys
 import time
-import torch
-import torchvision
-import torchvision.transforms as T
-from torch.utils.data import Dataset
-from torchvision.datasets import DatasetFolder
+from tqdm import tqdm
+import webvtt
+from word_forms.word_forms import get_word_forms
 
-class FrameRegionProposalsDataset(Dataset):
-    """Region proposals from video frames dataset."""
-
-    def __init__(self, root_dir, label, transform=None, output = 4, random_seed = 0):
-        '''
-        TODO:
-
-        Parameters
-        ----------
-        root_dir : string
-            Directory with all the image subdirectories.
-        label : string
-            directory holding the positive region proposals.
-        transform : callable, optional
-            transform to be applied on a sample to get it to the
-            embedded space. The default is None.
-        random_seed : int, optional
-            DESCRIPTION. The default is 0.
-
-        Returns
-        -------
-        None.
-
-        '''
-        self.root_dir  = root_dir
-        self.transform = transform
-        self.label     = label
-        self.output    = output
-        torch.manual_seed(random_seed)
-        self.video_ref   = {}
-        self.video_deref = {}
-        self.all_items   = []
-        self.tensors     = []
-        video_hash = 0
-        assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
-        
-        # creating positive item list
-        for i in os.listdir(os.path.join(root_dir, label)):
-            img_path = os.path.join(label, i)
-            image = plt.imread(os.path.join(self.root_dir,img_path))
-            with torch.no_grad():
-                features = self.transform(image)
-            self.all_items.append(img_path)
-            self.tensors.append(features)
-            video_name = i.split(';')[1]
-            if video_name not in list(self.video_ref):
-                self.video_ref[video_name] = video_hash
-                self.video_deref[video_hash] = video_name
-                video_hash+=1
-                
-        # addign negative items to the list
-        other_labels = [olabel for olabel in os.listdir(root_dir)
-                        if olabel is not label]
-        neg_labels   = torch.randint(len(other_labels), (len(self.all_items),))
-        for neg_label in neg_labels:
-            other_label     = other_labels[neg_label]
-            regions         = os.listdir(os.path.join(root_dir,other_label))
-            neg_region_ind  = torch.randint(len(regions), (1,))
-            neg_region_name = os.listdir(
-                os.path.join(root_dir, other_label))[neg_region_ind]
-            video_name = neg_region_name.split(';')[1]
-            neg_region_name = os.path.join(
-                    other_labels[neg_label],
-                    neg_region_name)
-            while neg_region_name in self.all_items:
-                neg_label       = torch.randint(len(other_labels), (1,))
-                other_label     = other_labels[neg_label]
-                regions         = os.listdir(
-                    os.path.join(root_dir,other_label))
-                neg_region_ind  = torch.randint(len(regions), (1,))
-                neg_region_name = os.listdir(
-                    os.path.join(root_dir, other_label))[neg_region_ind]
-                video_name = neg_region_name.split(';')[1]
-                neg_region_name = os.path.join(
-                    other_labels[neg_label],
-                    neg_region_name)
-            image = plt.imread(os.path.join(self.root_dir,neg_region_name))
-            with torch.no_grad():
-                features = self.transform(image)
-            self.all_items.append(neg_region_name)
-            self.tensors.append(features)
-            if video_name not in list(self.video_ref):
-                self.video_ref[video_name] = video_hash
-                self.video_deref[video_hash] = video_name
-                video_hash+=1
-        # self.tensors = torch.cat(self.tensors)
-        
-
-    def __len__(self):
-        return len(self.all_items)
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        
-        # print(f'getting item {idx} out of {len(self)}')
-        
-        
-        item = self.all_items[idx]
-        # print(f'item = {item}')
-        # img_name = os.path.join(self.root_dir,item)
-        # image    = plt.imread(img_name)
-        features = self.tensors[idx].squeeze()
-        # image    = image.reshape(1,*image.shape)
-        label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
-        video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
-        box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
-        frame    = torch.tensor(int(item.split(';')[2]))
-        # if self.transform:
-        #     with torch.no_grad():
-        #         features = self.transform(image)
-                # features.requires_grad = False
-        if self.output == 6:
-            return features, label, idx, box, video, frame
-        if self.output == 3:
-            return features, label, idx
-        return features
-        
-        
-def get_dataloader(data_path, batch_size, label):
+def time2secs(string):
     '''
-    TODO:
-
-    Parameters
-    ----------
-    data_path : TYPE
-        DESCRIPTION.
-    batch_size : TYPE
-        DESCRIPTION.
-
-    Returns
+    conver the string string of format [hh:mm:ss.mls] to a float of seconds.
     -------
-    train_dataloader : TYPE
-        DESCRIPTION.
-
-    '''
-    
-    model_name = 'inceptionresnetv2'
-    model = pretrainedmodels.__dict__[model_name](
-        num_classes=1000, pretrained='imagenet')
-    model.eval()
-    
-    transform = T.Compose(
-        [T.ToTensor(),
-         T.Normalize(mean=[0.485, 0.456, 0.406],
-                     std=[0.229, 0.224, 0.225]),
-         ])
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-        
-    )
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size,
-        shuffle=True, num_workers=2)
-    
-    return train_dataloader
-
-def to4D(tensor):
-    # print(tensor.shape)
-    if len(tensor.shape)>3:
-        return tensor
-    if len(tensor.shape)==3:
-        return tensor.unsqueeze(0)
-    if len(tensor.shape)==2:
-        return tensor.unsqueeze(0).unsqueeze(0)
-
-def get_dataset(data_path, label,):
-    
-    transform = T.Compose(
-            [T.ToTensor(),
-             T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-             ])
-
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-    )
-
-    DatasetFolder
-
-
-if __name__ == '__main__':
-    data_path = sys.argv[1] #'..\data\region_proposals'
-    pass    
-    
-    
-    # inputs, labels = next(iter(train_dataloader))
-    # for label in labels:
-    #     for ll, label in enumerate(train_dataset.classes):
-    #         if ll == train_dataset.class_to_idx: print(label)
-    # print(train_dataset.class_to_idx)
-    
-    
-    
-    
-    
-    
-    
-"""   
-def get_dataset(data_path, label,):
-    '''
-    TODO:
-
-    Parameters
-    ----------
-    data_path : TYPE
-        DESCRIPTION.
-    label : TYPE
-        DESCRIPTION.
-
-    Returns
+    params:
     -------
-    train_dataset : TYPE
-        DESCRIPTION.
-
+    string:  time in the format [hh:mm:ss.mls].
+    -------
+    return:
+    -------
+    time in the format of a float.
     '''
-    model_name = 'inceptionresnetv2'
-    model = pretrainedmodels.__dict__[model_name](
-        num_classes=1000, pretrained='imagenet')
-    model.eval()
-    
-    transform = T.Compose(
-        [T.ToTensor(),
-         T.Normalize(mean=[0.485, 0.456, 0.406],
-                     std=[0.229, 0.224, 0.225]),
-         to4D,
-         model,])
-    
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-    )
-    return train_dataset
+    return sum([60**(2-ii)*float(i) for ii, i in enumerate(string.split(':'))])
 
+def forms2list(dict_):
+    list_ = []
+    for key_ in list(dict_):
+        list_ += list(dict_[key_])
+    return list(set(list_))
 
-
-
-
-class FramesDataset(Dataset):
-    def __init__(self, root_dir, label, transform=None, output = 6, random_seed = 0):
-        self.root_dir  = root_dir
-        self.transform = transform
-        self.label     = label
-        self.output    = output
-        self.trans_batch = 512
-        torch.manual_seed(random_seed)
-        self.video_ref   = {}
-        self.video_deref = {}
-        self.all_items   = []
-        self.tensors     = []
-        video_hash = 0
-        assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
-        
-        # creating positive item list
-        for i in os.listdir(os.path.join(root_dir, label)):
-            img_path = os.path.join(label, i)
-            image = plt.imread(os.path.join(self.root_dir,img_path))
+def listIntersection(lst0, lst1, expand = False):
+    '''
+    Find the intersection of list lst0 and lst1.
+    -------
+    params:
+    -------
+    lst0:  list of key strings.
+    lst1:  string.
+    -------
+    return:
+    -------
+    list of values contained in both lists.
+    '''
+    if expand:
+        values = []
+        for value in lst0:
+            sub_values = forms2list(get_word_forms(value))
             
-            self.all_items.append(img_path)
-            self.tensors.append(features)
-            video_name = i.split(';')[1]
-            if video_name not in list(self.video_ref):
-                self.video_ref[video_name] = video_hash
-                self.video_deref[video_hash] = video_name
-                video_hash+=1
-                
-        # addign negative items to the list
-        other_labels = [olabel for olabel in os.listdir(root_dir)
-                        if olabel is not label]
-        neg_labels   = torch.randint(len(other_labels), (len(self.all_items),))
-        for neg_label in neg_labels:
-            other_label     = other_labels[neg_label]
-            regions         = os.listdir(os.path.join(root_dir,other_label))
-            neg_region_ind  = torch.randint(len(regions), (1,))
-            neg_region_name = os.listdir(
-                os.path.join(root_dir, other_label))[neg_region_ind]
-            video_name = neg_region_name.split(';')[1]
-            neg_region_name = os.path.join(
-                    other_labels[neg_label],
-                    neg_region_name)
-            while neg_region_name in self.all_items:
-                neg_label       = torch.randint(len(other_labels), (1,))
-                other_label     = other_labels[neg_label]
-                regions         = os.listdir(
-                    os.path.join(root_dir,other_label))
-                neg_region_ind  = torch.randint(len(regions), (1,))
-                neg_region_name = os.listdir(
-                    os.path.join(root_dir, other_label))[neg_region_ind]
-                video_name = neg_region_name.split(';')[1]
-                neg_region_name = os.path.join(
-                    other_labels[neg_label],
-                    neg_region_name)
-            image = plt.imread(os.path.join(self.root_dir,neg_region_name))
-            with torch.no_grad():
-                features = self.transform(image)
-            self.all_items.append(neg_region_name)
-            self.tensors.append(features)
-            if video_name not in list(self.video_ref):
-                self.video_ref[video_name] = video_hash
-                self.video_deref[video_hash] = video_name
-                video_hash+=1
+            for sub_value in sub_values:
+                if sub_value in lst1:
+                    values.append(value)
+                    break
+        return values
+    else:
+        return [value for value in lst0 if value in lst1]
 
-        self.transform()
-        
-    def transform(self,):
-        tensors = []
-        for batch, label in :
-            tensors.append(self.transform(batch))
-            
-    
-    def __len__(self):
-        return len(self.all_items)
 
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            with torch.no_grad():
-                idx = idx.tolist(self.transform(image))
-        
-        # print(f'getting item {idx} out of {len(self)}')
-        item = self.all_items[idx]
-        # print(f'item = {item}')
-        # img_name = os.path.join(self.root_dir,item)
-        # image    = plt.imread(img_name)
-        features = self.tensors[idx].squeeze()
-        # image    = image.reshape(1,*image.shape)
-        label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
-        video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
-        box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
-        frame    = torch.tensor(int(item.split(';')[2]))
-        # if self.transform:
-        #     with torch.no_grad():
-        #         features = self.transform(image)
-                # features.requires_grad = False
-        if self.output == 6:
-            return features, label, idx, box, video, frame
-        if self.output == 3:
-            return features, label, idx
-        return features 
+def stringSplit(string, delimiter, *args):
+    '''
+    Split thestring string to a list of substrings by the delimiters delimiter
+    and *args.
+    -------
+    params:
+    -------
+    string:     string to be split.
+    delimiter:  delimiter to split by.
+    *args:      aditional delimiters to split by.
+    -------
+    return:
+    -------
+    None
+    '''
+    for arg in args:
+        string = string.replace(arg, delimiter)
+    return string.split(' ')
 
-    """
+def extractFrames(in_dir, out_dir, search_words, target_list = [],
+                  checkpoint = 'extract_checkpoint.p', null_class = 'negative'):
+    '''
+    Get the frames coresponding to the subtitles containing one of the 
+    searched words. 
+    -------
+    params:
+    -------
+    in_dir:         folder containing the subtitle files.
+    out_dir:        destination for the image files.
+    search_words:   words to search for in the subtitles.
+    -------
+    return:
+    -------
+    None
+    '''
+    if checkpoint in os.listdir():
+        timeDict = pickle.load(open(checkpoint, "rb"))
+    else:
+        timeDict = dict()
+        # List the subtitle files
+        vttFiles = [i for i in os.listdir(path) if i[-3:] == 'vtt']
+        print('Searching subtitles...')
+        for vttFile in vttFiles:
+            # Go over each subtitle file and list the time stamps with at least
+            # one of the searched words.
+            found = False
+            for caption in webvtt.read(os.path.join(path, vttFile)):
+                intrs = listIntersection(search_words, caption.text.lower())
+                if intrs:
+                    found = True
+                    start = time2secs(caption.start)
+                    end   = time2secs(caption.end)
+                    time_ = (start+end)/2
+                    if vttFile in list(timeDict):
+                        timeDict[vttFile].append((time_, intrs))
+                    else:
+                        processed = True
+                        if vttFile in target_list or not target_list:
+                            processed = False
+                        timeDict[vttFile] = [processed, (time_, intrs),]
+            if not found:
+                for caption in webvtt.read(os.path.join(path, vttFile)):
+                    start = time2secs(caption.start)
+                    end   = time2secs(caption.end)
+                    time_ = (start+end)/2
+                    if vttFile in list(timeDict):
+                        timeDict[vttFile].append((time_, [null_class,]))
+                    else:
+                        processed = True
+                        if vttFile in target_list or not target_list:
+                            processed = False
+                        timeDict[vttFile] = [processed, (time_, [null_class,]),]
+        pickle.dump(timeDict, open(checkpoint, "wb"))
     
+    print('Searching videos...')
+    # extract the frames according to the found words and tag them.
+    count_total = len(list(timeDict))
+    count       = 0
+    processed   = 1
+    start_time  = time.time()
+    for file in list(timeDict):
+        count+=1
+        if count%500==0:
+            print('\n')
+            print('### FRAME EXTRACTION ###')
+            print(f'runing time:{time.time()-start_time}')
+            print(f'processed: {count}/{count_total}')
+            print(f'remaining time approximately: {(time.time()-start_time)/processed*(count_total-processed)}')
+            print('\n')
+
+        if timeDict[file][0]:
+            continue
+        processed+=1
+        timeDict[file][0] = True
+        pickle.dump(timeDict, open(checkpoint, "wb"))
+        time_list  = timeDict[file][1:]
+        time_list.reverse()
+        video_file = file[:-7]+'.mp4'
+        video      = cv2.VideoCapture(os.path.join(path, video_file))
+        fps        = video.get(cv2.CAP_PROP_FPS)
+        ret, frame = video.read()
+        frameNum   = 1
+        next_time, words = time_list.pop()
+        while ret:
+            time_ = frameNum*1/fps
+            frameNum+=1
+            if time_>=next_time:
+                for word in words:
+                    fname = word+';'+file[:-7]+f';{round(time_):04}'+'.png'
+                    cv2.imwrite(os.path.join(out_dir, fname), frame)
+                if time_list:
+                    next_time, words = time_list.pop()
+                else: break 
+            ret, frame = video.read()
+
+if __name__ == "__main__"    :
+    # path = 'example'
+    # search_words = ['book', 'Book','books', 'Books',
+    #                 'pillow', 'Pillow', 'pillows', 'Pillows',
+    #                 'leaf','Leaf', 'leaves', 'Leaves']
+    # out_dir = 'frames'
     
-    
-    
-    
-    
-    
+    assert len(sys.argv) >= 3, AssertionError('paths to source and desination required')
+    path         = sys.argv[1]
+    out_dir      = sys.argv[2]
+    if len(sys.argv) < 5:
+        search_words = ['bike', 'cup', 'dog', 'drum', 'guitar',
+                        'gun', 'horse', 'pan', 'plate',
+                        'scissors', 'tire']
+    else:
+        search_words = []
+        for i in range(4, len(sys.argv)):
+            search_words.append(sys.argv[i])
+    target_list = []
+    if len(sys.argv) >= 4:
+        t = open(sys.argv[3], 'r')
+        line = t.readline()
+        while line:
+            target_list.append(line[:-1])
+            print(f'registered target {line}')
+            line = t.readline()
+        t.close()
+    extractFrames(path, out_dir, search_words, target_list = target_list)
     
     
     

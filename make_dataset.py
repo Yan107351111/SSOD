@@ -8,8 +8,6 @@ Created on Wed Jun  3 12:38:09 2020
 
 
 import sys
-sys.path.append('../SSOD')
-
 import datetime
 import os
 from SelectiveSearch import selective_search

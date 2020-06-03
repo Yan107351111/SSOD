@@ -41,7 +41,7 @@ def default_initialise_weight_bias_(weight: torch.Tensor, bias: torch.Tensor, ga
 
 class StackedDenoisingAutoEncoder(nn.Module):
     def __init__(self,
-                 feature_extractor: torch.nn.Module
+                 feature_extractor: torch.nn.Module,
                  dimensions: List[int],
                  activation: torch.nn.Module = nn.ReLU(),
                  final_activation: Optional[torch.nn.Module] = nn.ReLU(),
