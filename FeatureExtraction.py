@@ -18,6 +18,11 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 from torchvision.datasets import DatasetFolder
 
+model_name = 'inceptionresnetv2'
+feature_extractor = pretrainedmodels.__dict__[model_name](
+    num_classes=1000, pretrained='imagenet')
+feature_extractor.eval()
+
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
 
@@ -42,6 +47,7 @@ class FrameRegionProposalsDataset(Dataset):
         None.
 
         '''
+        self._transformed = False
         self.root_dir  = root_dir
         self.transform = transform
         self.label     = label
@@ -107,12 +113,12 @@ class FrameRegionProposalsDataset(Dataset):
         
         # print(f'getting item {idx} out of {len(self)}')
         
-        
         item = self.all_items[idx]
         # print(f'item = {item}')
-        img_name = os.path.join(self.root_dir,item)
-        image    = self.transform(plt.imread(img_name))
-        
+        if not self._transformed:
+            img_name = os.path.join(self.root_dir,item)
+            image    = self.transform(plt.imread(img_name))
+        else: image = self.tensors[idx]
         # image    = image.reshape(1,*image.shape)
         label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
@@ -201,12 +207,23 @@ def get_dataset(data_path, label,):
              T.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
              ])
-
     train_dataset = FrameRegionProposalsDataset(
         root_dir  = data_path,
         label     = label,
         transform = transform,
     )
+    train_dataset.output = 1
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=32,
+        shuffle=True, num_workers=2)
+    tensors = []
+    for batch in tqdm(train_dataloader, desc = 'extracting features:'):
+        with torch.no_grad():
+             tensors.append(feature_extractor(batch))
+    tensors = torch.cat(tensors)
+    train_dataset.tensors = tensors
+    train_dataset._transformed = True 
+    train_dataset.output = 6
     return train_dataset
 
 

@@ -21,15 +21,16 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from WDEC_train import train, DataSetExtract, PotentialScores
 
-model_name = 'inceptionresnetv2'
-feature_extractor = pretrainedmodels.__dict__[model_name](
-    num_classes=1000, pretrained='imagenet')
-feature_extractor.eval()
+# model_name = 'inceptionresnetv2'
+# feature_extractor = pretrainedmodels.__dict__[model_name](
+#     num_classes=1000, pretrained='imagenet')
+# feature_extractor.eval()
+feature_extractor = lambda x: x
 
 # get dataset and dataloader
 print('preparing prerequisites')
 data_path    = sys.argv[1] # '../../data/region_proposals'
-batch_size   = 64
+batch_size   = 256
 batch_num    = 100
 label        = sys.argv[2] # 'bike'
 print('getting dataset')
@@ -109,7 +110,7 @@ wdec = WDEC(
 # activation in layers 1-2 and a softmax activation for the output layer
 # Dropout is used for the two hidden layers with probability of 0.8
 # cross-entropy loss function
-detector = SSDetector(feature_extractor)
+detector = SSDetector(feature_extractor, embedded_dim)
 
 if cuda:
     wdec.cuda()
