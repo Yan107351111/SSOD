@@ -111,9 +111,11 @@ def selective_search(
                     continue
                 # crop, resize and save
                 crop = image[y:y+h, x:x+w]
+                label = image_name.split(':')[0]
                 cv2.imwrite(
                     os.path.join(
                         out_path,
+                        label,
                         f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
                         ),
                     cv2.resize(crop, imsize, interpolation = cv2.INTER_AREA)
@@ -145,7 +147,7 @@ if __name__ == '__main__':
     ############
     
     selective_search(
-        DATA_PATH, OUT_PATH, LABELS[0],
+        DATA_PATH, OUT_PATH, LABELS,
         N, IMSIZE, MIN_W, MIN_H, MIN_P,
     )
     
