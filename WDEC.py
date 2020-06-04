@@ -9,6 +9,7 @@ from detector_train import DetectorTrainer
 from DSD import DSD
 from FeatureExtraction import get_dataset
 from model import SSDetector
+import pickle
 import pretrainedmodels
 from ptdec.dec import WDEC
 import ptsdae.model as ae
@@ -25,7 +26,7 @@ from WDEC_train import train, DataSetExtract, PotentialScores
 # feature_extractor = pretrainedmodels.__dict__[model_name](
 #     num_classes=1000, pretrained='imagenet')
 # feature_extractor.eval()
-feature_extractor = lambda x: x
+feature_extractor = nn.Identity()
 
 # get dataset and dataloader
 print('preparing prerequisites')
@@ -33,8 +34,16 @@ data_path    = sys.argv[1] # '../../data/region_proposals'
 batch_size   = 256
 batch_num    = 100
 label        = sys.argv[2] # 'bike'
+if len(sys.argv)>3:
+    dataset_path = sys.argv[3]
+else:
+    dataset_path = 'ds_train.p'
+autoencoder_path = 'autoencoder.p'   
 print('getting dataset')
-ds_train     = get_dataset(data_path, label)
+try: ds_train = pickle(open(dataset_path, 'rb'))
+except:
+    ds_train = get_dataset(data_path, label)
+    pickle.dump(ds_train, open(dataset_path, 'wb'))
 print('got dataset')
 ds_train.output = 2
 
@@ -45,41 +54,45 @@ training_callback = None
 cuda         = torch.cuda.is_available()
 ds_val       = None
 embedded_dim = 1000
-autoencoder  = StackedDenoisingAutoEncoder(
-        feature_extractor = feature_extractor,
-        dimensions = [embedded_dim, 500, 500, 2000, 10],
-        final_activation = None,
+
+try: autoencoder = pickle(open(autoencoder_path, 'rb'))
+except:
+    autoencoder  = StackedDenoisingAutoEncoder(
+            feature_extractor = feature_extractor,
+            dimensions = [embedded_dim, 500, 500, 2000, 10],
+            final_activation = None,
+        )
+    if cuda:
+        autoencoder.cuda()
+    
+    print('Pretraining stage.')
+    ae.pretrain(
+        ds_train,
+        autoencoder,
+        cuda       = cuda,
+        validation = ds_val,
+        epochs     = pretrain_epochs,
+        batch_size = batch_size,
+        optimizer  = lambda model: SGD(model.parameters(), lr=0.1, momentum=0.9),
+        scheduler  = lambda x: StepLR(x, 100, gamma=0.1),
+        corruption = 0.2
     )
-if cuda:
-    autoencoder.cuda()
-
-print('Pretraining stage.')
-ae.pretrain(
-    ds_train,
-    autoencoder,
-    cuda       = cuda,
-    validation = ds_val,
-    epochs     = pretrain_epochs,
-    batch_size = batch_size,
-    optimizer  = lambda model: SGD(model.parameters(), lr=0.1, momentum=0.9),
-    scheduler  = lambda x: StepLR(x, 100, gamma=0.1),
-    corruption = 0.2
-)
-
-print('Training stage.')
-ae_optimizer = SGD(params=autoencoder.parameters(), lr=0.1, momentum=0.9)
-ae.train(
-    ds_train,
-    autoencoder,
-    cuda            = cuda,
-    validation      = ds_val,
-    epochs          = finetune_epochs,
-    batch_size      = batch_size,
-    optimizer       = ae_optimizer,
-    scheduler       = StepLR(ae_optimizer, 100, gamma=0.1),
-    corruption      = 0.2,
-    update_callback = training_callback
-)
+    
+    print('Training stage.')
+    ae_optimizer = SGD(params=autoencoder.parameters(), lr=0.1, momentum=0.9)
+    ae.train(
+        ds_train,
+        autoencoder,
+        cuda            = cuda,
+        validation      = ds_val,
+        epochs          = finetune_epochs,
+        batch_size      = batch_size,
+        optimizer       = ae_optimizer,
+        scheduler       = StepLR(ae_optimizer, 100, gamma=0.1),
+        corruption      = 0.2,
+        update_callback = training_callback
+    )
+    pickle.dump(autoencoder, open(autoencoder_path, 'wb'))
 
 ds_train.output = 6
 # Train a weighted DEC
@@ -142,7 +155,7 @@ for epoch in range(MAX_EPOCHS):
         reinitKMeans = True
     train(
         dataset        = ds_train,
-        wdec          = wdec,
+        wdec           = wdec,
         epochs         = 1,
         reinitKMeans   = reinitKMeans,
         batch_size     = 256,
