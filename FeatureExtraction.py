@@ -227,6 +227,7 @@ def get_dataset(data_path, label,):
     return train_dataset
 
 
+
 if __name__ == '__main__':
     data_path = sys.argv[1] #'..\data\region_proposals'
     pass    
@@ -259,7 +260,7 @@ def get_dataset(data_path, label,):
     Returns
     -------
     train_dataset : TYPE
-        DESCRIPTION.
+        DESCRIPTION.bounding_boxs
 
     '''
     model_name = 'inceptionresnetv2'

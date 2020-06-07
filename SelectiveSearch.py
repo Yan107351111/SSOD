@@ -4,21 +4,21 @@ Created on Sun Apr 26 09:37:11 2020
 
 @author: yan10
 """
-
 import cv2
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import os
 import sys
-from tqdm import tqdm
 import time
+import torch
+from tqdm import tqdm
 from typing import Union, Tuple
 
 
 def selective_search(
         data_path: str, out_path: str, label: str = None,
         region_num: int = 300, region_skip: int = 3, imsize: Union[int, Tuple] = 299,
-        min_width: int = 30, min_hight: int = 30, min_size: int = 200):
+        min_width: int = 30, min_hight: int = 30, min_size: int = 200, to_file = True):
     '''
     perform selective search on images in folder "data_path".
     output rescaled to "imsize" images will be saved at "out_path".
@@ -70,8 +70,11 @@ def selective_search(
                          'But got {type(imsize)}')
     assert region_skip>=0
     
-    image_names = [image_name
-                   for image_name in os.listdir(data_path)]
+    if os.path.isfile(data_path):
+        image_names = [data_path]
+    else:
+        image_names = [image_name
+                       for image_name in os.listdir(data_path)]
     
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
     try:
@@ -81,6 +84,8 @@ def selective_search(
     # count_total = len(image_names)
     # count       = 0
     # start_time  = time.time()
+    regions = []
+    bounding_boxs = []
     for image_name in tqdm(image_names):
         # count+=1
         # if count%500==0:
@@ -114,21 +119,27 @@ def selective_search(
                 label = image_name.split(';')[0]
                 try: os.mkdir(os.path.join(out_path, label))
                 except: pass
-                cv2.imwrite(
-                    os.path.join(
-                        out_path,
-                        label,
-                        f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
-                        ),
-                    cv2.resize(crop, imsize, interpolation = cv2.INTER_AREA)
-                    )
+                region = cv2.resize(crop, imsize, interpolation = cv2.INTER_AREA)
+                if to_file:
+                    cv2.imwrite(
+                        os.path.join(
+                            out_path,
+                            label,
+                            f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
+                            ),
+                        region
+                        )
+                else:
+                    regions.append(torch.tensor(region))
+                    bounding_boxs.append(torch.tensor([x,y,w,h]))
                 ims+=1            
                 skip+=1
                 if ims>=region_num:
                     break
+        if not to_file:
+            return torch.satck(regions), torch.satck(bounding_boxs)
+
         
-
-
 
 
 if __name__ == '__main__':
