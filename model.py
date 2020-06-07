@@ -17,13 +17,12 @@ class SSDetector(nn.Module):
         self.llayer1 = nn.Linear(1024, 1024)
         self.dropout = nn.Dropout(0.8)
         self.llayer2 = nn.Linear(1024, 2)
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(-1)
 
         
-    def farward(self, x):
-        with torch.no_grad():
-            y = self.feature_extractor(x)
-        y = self.llayer0(y)
+    def forward(self, x):
+        
+        y = self.llayer0(x)
         y = self.relu(y)
         y = self.dropout(y)
         y = self.llayer1(y)

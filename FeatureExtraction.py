@@ -72,28 +72,26 @@ class FrameRegionProposalsDataset(Dataset):
         # addign negative items to the list
         other_labels = [olabel for olabel in os.listdir(root_dir)
                         if olabel is not label]
+        regions_dict = {}
+        for other_label in other_labels:
+            regions_dict[other_label] = os.listdir(os.path.join(root_dir,other_label))
         neg_labels   = torch.randint(len(other_labels), (len(self.all_items),))
         for neg_label in tqdm(neg_labels, desc = 'Negative sample collection:'):
             other_label     = other_labels[neg_label]
-            regions         = os.listdir(os.path.join(root_dir,other_label))
-            neg_region_ind  = torch.randint(len(regions), (1,))
-            neg_region_name = os.listdir(
-                os.path.join(root_dir, other_label))[neg_region_ind]
+            neg_region_ind  = torch.randint(len(regions_dict[other_label]), (1,))
+            neg_region_name = regions_dict[other_label][neg_region_ind]
             video_name = neg_region_name.split(';')[1]
             neg_region_name = os.path.join(
-                    other_labels[neg_label],
+                    other_label,
                     neg_region_name)
             while neg_region_name in self.all_items:
                 neg_label       = torch.randint(len(other_labels), (1,))
                 other_label     = other_labels[neg_label]
-                regions         = os.listdir(
-                    os.path.join(root_dir,other_label))
-                neg_region_ind  = torch.randint(len(regions), (1,))
-                neg_region_name = os.listdir(
-                    os.path.join(root_dir, other_label))[neg_region_ind]
+                neg_region_ind  = torch.randint(len(regions_dict[other_label]), (1,))
+                neg_region_name = regions_dict[other_label][neg_region_ind]
                 video_name = neg_region_name.split(';')[1]
                 neg_region_name = os.path.join(
-                    other_labels[neg_label],
+                    other_label,
                     neg_region_name)
             self.all_items.append(neg_region_name)
             if video_name not in list(self.video_ref):
@@ -201,7 +199,7 @@ class extract_features():
             return self.model()
 
 def get_dataset(data_path, label,):
-    
+    cuda = torch.cuda.is_available()
     transform = T.Compose(
             [T.ToTensor(),
              T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -214,16 +212,22 @@ def get_dataset(data_path, label,):
     )
     train_dataset.output = 1
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=32,
+        train_dataset, batch_size=800,
         shuffle=True, num_workers=2)
     tensors = []
+    if cuda:
+        feature_extractor.cuda()
     for batch in tqdm(train_dataloader, desc = 'extracting features:'):
+        if cuda:
+            batch = batch.cuda()
         with torch.no_grad():
-             tensors.append(feature_extractor(batch))
+             tensors.append(feature_extractor(batch).cpu())
     tensors = torch.cat(tensors)
     train_dataset.tensors = tensors
     train_dataset._transformed = True 
     train_dataset.output = 6
+    
+    feature_extractor.cpu()
     return train_dataset
 
 
