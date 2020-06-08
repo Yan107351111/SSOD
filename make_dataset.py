@@ -45,7 +45,7 @@ if __name__ == '__main__':
         negative = os.path.join(data_path, other_labels[l], negatives[n])
         if negative not in nagetive_images:
             nagetive_images.append(negative)
-        i+=1
+            i+=1
     
     
     for img in positive_images:
