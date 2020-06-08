@@ -86,6 +86,7 @@ def SSKMeans(
         videos        = videos[indices]
         frames        = frames[indices]
         DCD_count     = torch.zeros((K,))
+               
         for C in range(K):
             #print('\n\n\n')
             #print(f'wdec.assignment.cluster_predicted.shape = {wdec.assignment.cluster_predicted}')
@@ -101,9 +102,16 @@ def SSKMeans(
             
         ## Compute the potential score Sk in (1) for each cluster
         ## set τ = 50
+        #print('\n\n\n')
+        #print(feature_list)
+        #print('\n\n\n')
         sample_weights = PotentialScores(
             feature_list, video_list, label_list,
-        ) 
+        )
+        #print('\n\n\n')
+        #print(sample_weights)
+        #print('\n\n\n')
+        
         if (sample_weights!=sample_weights).any():
             raise ValueError(f'Self similarity test failure 0\nsample_weights = {sample_weights}')
         if torch.isinf(sample_weights).any():
@@ -132,6 +140,10 @@ def SSKMeans(
         features.numpy(),
         sample_weight = sample_weights, # model.assignment.weights(actual, idxs),
     )
+    
+    #print('\n\n\n')
+    #print(f'SSKMeans predicted: {predicted}')
+    #print('\n\n\n')
     return predicted, kmeans
     
 
@@ -171,6 +183,14 @@ def PositiveRatioClusters(
 def ReInitKMeans(wdec, data_iterator): # TODO: finish function and put in train function
     raise NotImplementedError()
 
+
+def test_dataset(dataset):
+    return
+    batch, label, idx, box, video, frame = dataset[0]
+    print('\n\n\n')
+    print('Testing data')
+    print(f'batch = {batch[:10]}')
+    print('\n\n\n')
 
 def DataSetExtract(
         dataset: torch.utils.data.Dataset,
@@ -222,6 +242,9 @@ def DataSetExtract(
         DESCRIPTION.
 
     '''
+    #print('\n\n\n')
+    #print('Linearizing dataset')
+    #print('\n\n\n')
     static_dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
@@ -241,13 +264,14 @@ def DataSetExtract(
             'dlb': '%.4f' % -1,
         },
         disable=silent
-    )
+    )   
+    test_dataset(dataset)    
     features = []
     actual   = []
     idxs     = []
     videos   = []
     boxs     = []
-    frames   = []
+    frames   = []    
     # form initial cluster centres
     for index, batch in enumerate(data_iterator):
         if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 3:
@@ -264,6 +288,11 @@ def DataSetExtract(
             features.append(wdec.encoder(batch).detach().cpu())
         else:
             features.append(batch)
+    #if wdec is not None:
+    #    print('\n\n\n')
+    #    print(f'DataExtract batch: {batch[0][:10]}')
+    #    print(f'DataExtract features: {features[0][0]}')
+    #    print('\n\n\n')
     features  = torch.cat(features)
     actual    = torch.cat(actual).long()
     idxs      = torch.cat(idxs).long()
@@ -340,9 +369,13 @@ def train(dataset: torch.utils.data.Dataset,
     )
     wdec.train()
     
+    test_dataset(dataset)
+    
+    
     if reinitKMeans:
         # get all data needed for KMeans.
         features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
+               
         # KMeans.
         predicted, kmeans = SSKMeans(
             wdec, features, actual, idxs, boxs, videos, frames

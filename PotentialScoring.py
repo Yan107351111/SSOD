@@ -23,10 +23,20 @@ def Var_multiDim(points, eps = 1e-5):
         vector of the variences of the samples in each of the clusters.
 
     '''
+    #print('\n\n\n')
+    #print(points)
+    #print('\n\n\n')
     N   = len(points)
     if N<2: return torch.tensor(1/eps)
     M1  = torch.mean(points, dim = 0)
     SEs = torch.norm(points-M1, 2, dim = -1)**2
+    #print('\n\n\n')
+    #print('1st moment')
+    #print(M1)
+    #print('\n\n\n')
+    #print('2nd moment')
+    #print(SEs)
+    #print('\n\n\n')
     V   = 1/(N-1)*torch.sum(SEs, dim = -1)+eps
     return V
 
@@ -80,6 +90,9 @@ def PotentialScores(features, videos, labels, tau = 50, eps = 1e-5):
     S : torch.tensor
         tensor with the shape (C,) containing the Potential Scores.
     '''
+    #print('\n\n\n')
+    #print(features)
+    #print('\n\n\n')
     P_k = torch.tensor([torch.mean(label.float()) for label in labels])
     U_k = torch.tensor([Unique(video).float() for video in videos])
     V_k = torch.tensor([Var_multiDim(feature).float() for feature in features])

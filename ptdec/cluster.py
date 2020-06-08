@@ -105,10 +105,17 @@ class WeightedClusterAssignment(nn.Module):
             * self.weights(labels, idx).reshape(-1,1,1),
             2
         )
+        if (norm_squared!=norm_squared).any(): raise ValueError('nan found at norm_squared')
         numerator = 1.0 / (1.0 + (norm_squared / self.alpha))
+        if (norm_squared!=norm_squared).any(): raise ValueError('nan found at numerator0')
         power = float(self.alpha + 1) / 2
         numerator = numerator**power 
-        return numerator / torch.sum(numerator, dim=1, keepdim=True)
+        if (norm_squared!=norm_squared).any(): raise ValueError('nan found at numerator1')
+        denumerator = torch.sum(numerator, dim=1, keepdim=True)
+        if (denumerator!=denumerator).any(): raise ValueError(f'nan found at denumerator: {denumerator}')
+        assignment = numerator / numerator#torch.sum(numerator, dim=1, keepdim=True)
+        if (assignment!=assignment).any(): raise ValueError(f'nan found at assignment: {assignment}')
+        return assignment# numerator / torch.sum(numerator, dim=1, keepdim=True)
     
     def weights(self, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
         '''

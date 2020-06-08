@@ -62,6 +62,7 @@ class WDEC(nn.Module):
         self.cluster_number = cluster_number
         self.alpha = alpha
         self.assignment = WeightedClusterAssignment(cluster_number, self.hidden_dimension, positive_ratio_threshold, alpha)
+        
 
     def forward(self, batch: torch.Tensor, labels: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
         """
@@ -73,6 +74,13 @@ class WDEC(nn.Module):
         :param idx: [batch size,] FloatTensor
         :return: [batch size, number of clusters] FloatTensor
         """
-        with torch.no_grad():
-            batch = self.feature_extractor(batch)
+        encoded = self.encoder(batch)
+        assignment = self.assignment(encoded, labels, idx)
+        if (encoded!=encoded).any() or (assignment!=assignment).any():
+            print('\n\n\n')
+            print(f'encoded = {encoded}')
+            print(f'assignment = {assignment}')
+            print(f'assignment = {assignment}')
+            print('\n\n\n')
+        return assignment
         return self.assignment(self.encoder(batch), labels, idx)

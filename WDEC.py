@@ -22,6 +22,9 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from WDEC_train import train, DataSetExtract, PotentialScores
 
+
+torch.manual_seed(0)
+
 # model_name = 'inceptionresnetv2'
 # feature_extractor = pretrainedmodels.__dict__[model_name](
 #     num_classes=1000, pretrained='imagenet')
@@ -38,10 +41,14 @@ if len(sys.argv)>3:
     dataset_path = sys.argv[3]
 else:
     dataset_path = 'ds_train.p'
-autoencoder_path = 'autoencoder.p'   
+autoencoder_path = 'autoencoder.p'  
+detector_path    = 'detector.p' 
 print('getting dataset')
-try: ds_train = pickle(open(dataset_path, 'rb'))
+try: 
+    ds_train = pickle.load(open(dataset_path, 'rb'))
+    print('prepackaged dataset found and loaded')
 except:
+    print('no prepackaged dataset found\ncreating dataset from data_path')
     ds_train = get_dataset(data_path, label)
     pickle.dump(ds_train, open(dataset_path, 'wb'))
 print('got dataset')
@@ -55,7 +62,7 @@ cuda         = torch.cuda.is_available()
 ds_val       = None
 embedded_dim = 1000
 
-try: autoencoder = pickle(open(autoencoder_path, 'rb'))
+try: autoencoder = pickle.load(open(autoencoder_path, 'rb'))
 except:
     autoencoder  = StackedDenoisingAutoEncoder(
             feature_extractor = feature_extractor,
@@ -153,6 +160,12 @@ for epoch in range(MAX_EPOCHS):
     reinitKMeans = False
     if epoch%I == 0:
         reinitKMeans = True
+        
+    #print('\n\n\n')
+    #print(f'epoch: {epoch} ;reinitKMeans: {reinitKMeans}')
+    #print('\n\n\n')
+      
+    print('Training WDEC\n')  
     train(
         dataset        = ds_train,
         wdec           = wdec,
@@ -164,9 +177,22 @@ for epoch in range(MAX_EPOCHS):
         cuda           = cuda,
     )
     
+    #print('\n\n\n')
+    #print('Preparing detector training dataloader')
+    #print('\n\n\n')
+    
     # Train a region classifier with sampled positive and negative regions 
     # get all data needed to compute the potential scores.
     features, actual, idxs, boxs, videos, frames = DataSetExtract(ds_train)
+    
+    
+    
+    #print('\n\n\n')
+    #print(f'features = {features}')
+    #print('\n\n\n')
+    
+    
+    
     feature_list  = []
     video_list    = []
     label_list    = []
@@ -199,6 +225,10 @@ for epoch in range(MAX_EPOCHS):
     ) 
     potential_scores[DCD_count>0] /= DCD_count[DCD_count>0]
     
+    #print('\n\n\n')
+    #print(f'potential_scores = {potential_scores}')
+    #print('\n\n\n')
+    
     pred_idxs = wdec.assignment.cluster_predicted[:,0].clone()
     _, pred_idxs = pred_idxs.sort()
     # print('\n\n\n')
@@ -219,6 +249,8 @@ for epoch in range(MAX_EPOCHS):
     sample_distribution[positive_idxs] = dcd_sample_scores/2
     sample_distribution[sample_distribution==0] = 1/(len(ds_train)-len(positive_idxs))/2
     
+    
+    
     sampler_det = WeightedRandomSampler(
         weights     = sample_distribution,
         num_samples = batch_num*batch_size,
@@ -230,7 +262,10 @@ for epoch in range(MAX_EPOCHS):
         batch_size = batch_size,
         sampler    = sampler_det,
     )
+    print('Training detector\n')
     det_trainer.fit(dl_det, num_epochs = 1, start_epoch = epoch)
+    
+    pickle.dump(detector, open(detector_path, 'wb'))
     
     
     

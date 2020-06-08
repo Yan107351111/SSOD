@@ -57,18 +57,18 @@ class FrameRegionProposalsDataset(Dataset):
         self.video_deref = {}
         self.all_items   = []
         video_hash = 0
-        assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
+        # assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
 
         # creating positive item list
-        for i in tqdm(os.listdir(os.path.join(root_dir, label)), desc = 'Positive sample collection:'):
-            img_path = os.path.join(label, i)
+        for i in tqdm(os.listdir(os.path.join(root_dir)), desc = 'Positive sample collection:'):
+            img_path = os.path.join(i)
             self.all_items.append(img_path)
             video_name = i.split(';')[1]
             if video_name not in list(self.video_ref):
                 self.video_ref[video_name] = video_hash
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
-                
+        ''' 
         # addign negative items to the list
         other_labels = [olabel for olabel in os.listdir(root_dir)
                         if olabel is not label]
@@ -98,7 +98,7 @@ class FrameRegionProposalsDataset(Dataset):
                 self.video_ref[video_name] = video_hash
                 self.video_deref[video_hash] = video_name
                 video_hash+=1
-            
+          '''  
         
         
 
@@ -118,7 +118,7 @@ class FrameRegionProposalsDataset(Dataset):
             image    = self.transform(plt.imread(img_name))
         else: image = self.tensors[idx]
         # image    = image.reshape(1,*image.shape)
-        label    = torch.tensor(1.) if os.path.split(item)[0]==self.label else torch.tensor(0.)
+        label    = torch.tensor(1.) if item.split(';')[0]==self.label else torch.tensor(0.)
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
         box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
         frame    = torch.tensor(int(item.split(';')[2]))
