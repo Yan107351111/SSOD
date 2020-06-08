@@ -17,7 +17,7 @@ from typing import Union, Tuple
 
 def selective_search(
         data_path: str, out_path: str, label: str = None,
-        region_num: int = 300, region_skip: int = 3, imsize: Union[int, Tuple] = 299,
+        region_num: int = 2000, region_skip: int = 2, imsize: Union[int, Tuple] = 299,
         min_width: int = 30, min_hight: int = 30, min_size: int = 200, to_file = True):
     '''
     perform selective search on images in folder "data_path".
@@ -58,7 +58,10 @@ def selective_search(
     Returns
     -------
     None.
-
+    
+    "Given an image, about 2, 000 object proposals from Selective
+    Search [20] or EdgeBox [47] are generated" 
+    - https://arxiv.org/pdf/1807.03342.pdf @ 3. Method
     '''
     if  isinstance(imsize, int):
         imsize = (299, 299)
@@ -148,8 +151,8 @@ if __name__ == '__main__':
     DATA_PATH = sys.argv[1]#'..\\..\\data\\example'
     OUT_PATH  = sys.argv[2]#'..\\..\\data\\region_proposals'
     ############ defults
-    N      = 300 # number of reg props
-    SKIP   = 3   # take only SKIP'th proposal
+    N      = 2000 # number of reg props
+    SKIP   = 1   # take only SKIP'th proposal
     LABELS = ['bike', 'cup', 'dog', 'drum', 'guitar',
                'gun', 'horse', 'pan', 'plate',
                'scissors', 'tire']
