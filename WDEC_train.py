@@ -68,7 +68,7 @@ def SSKMeans(
         DESCRIPTION.
     '''
     # print('\n\n\n')
-    print('\nperforming KMeans\n')
+    # print('\nperforming KMeans\n')
     # print('\n\n\n')
     
     kmeans = KMeans(n_clusters=wdec.cluster_number, n_init=20)
@@ -199,7 +199,7 @@ def DataSetExtract(
         batch_size: int = 2000,
         collate_fn = default_collate,
         sampler: Optional[torch.utils.data.sampler.Sampler] = None,
-        cuda: bool = True,
+        cuda: bool = False,
     ):
     '''
     TODO:
@@ -383,6 +383,7 @@ def train(dataset: torch.utils.data.Dataset,
         predicted, kmeans = SSKMeans(
             wdec, features, actual, idxs, boxs, videos, frames
         )
+        del features, boxs, videos, frames
         # Computing the positive ration scores and the positive ratio clusters
         cpr = PositiveRatioClusters(
             predicted, actual, wdec.assignment.cluster_number,
@@ -407,18 +408,22 @@ def train(dataset: torch.utils.data.Dataset,
             wdec.assignment.cluster_predicted = predicted_idxed.clone()
             wdec.assignment.cluster_positive_ratio = cpr.clone()
     else:
-      predicted, actual = predict(
-            dataset,
-            wdec,
-            batch_size=evaluate_batch_size,
-            collate_fn=collate_fn,
-            silent=True,
-            return_actual=True,
-            cuda=cuda
+        predicted, actual = predict(
+              dataset,
+              wdec,
+              batch_size=evaluate_batch_size,
+              collate_fn=collate_fn,
+              silent=True,
+              return_actual=True,
+              cuda=cuda
         )
-      predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
-      _, accuracy = cluster_accuracy(predicted.cpu().numpy(), actual.cpu().numpy())
+        predicted_previous = torch.tensor(np.copy(predicted), dtype=torch.long)
+        _, accuracy = cluster_accuracy(predicted.cpu().numpy(), actual.cpu().numpy())
         
+    if start_time is not None:
+        print('\trainint DEC')
+        print(f'@ {time.time() - start_time}\n')
+
     loss_function = nn.KLDivLoss(size_average=False)
     delta_label = None
     for epoch in range(epochs):
@@ -490,6 +495,7 @@ def train(dataset: torch.utils.data.Dataset,
         )
         if epoch_callback is not None:
             epoch_callback(epoch, wdec)
+    wdec.cpu()
 
 
 def predict(dataset: torch.utils.data.Dataset,

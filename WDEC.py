@@ -37,7 +37,7 @@ feature_extractor = nn.Identity()
 print('preparing prerequisites')
 data_path    = sys.argv[1] # '../../data/region_proposals'
 batch_size   = 256
-batch_num    = 100
+batch_num    = 1000
 label        = sys.argv[2] # 'bike'
 if len(sys.argv)>3:
     dataset_path = sys.argv[3]
