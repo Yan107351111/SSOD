@@ -278,10 +278,12 @@ def DataSetExtract(
         else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
         if cuda:
             batch = batch.cuda(non_blocking = True)
-            wdec.cuda()
+            if wdec is not None:
+                wdec.cuda()
         else:
             batch = batch.cpu()
-            wdec.cpu()
+            if wdec is not None:
+                wdec.cpu()
         if wdec is not None:
             features.append(wdec.encoder(batch).detach().cpu())
         else:
