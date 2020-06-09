@@ -18,7 +18,7 @@ from ptdec.model import predict
 from ptdec.utils import target_distribution, cluster_accuracy
 
 from sklearn.cluster import KMeans
-
+import time
 import torch
 import torch.nn as nn
 # from torch.optim import SGD
