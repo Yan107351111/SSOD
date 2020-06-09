@@ -179,6 +179,7 @@ for epoch in range(MAX_EPOCHS):
         optimizer      = dec_optimizer,
         stopping_delta = None, # 0.000001,
         cuda           = cuda,
+        start_time     = start_time
     )
     
     #print('\n\n\n')

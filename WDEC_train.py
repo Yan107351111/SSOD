@@ -196,7 +196,7 @@ def DataSetExtract(
         dataset: torch.utils.data.Dataset,
         wdec: torch.nn.Module = None,
         silent: bool = False,
-        batch_size: int = 512,
+        batch_size: int = 2000,
         collate_fn = default_collate,
         sampler: Optional[torch.utils.data.sampler.Sampler] = None,
         cuda: bool = True,
@@ -253,12 +253,12 @@ def DataSetExtract(
         sampler=sampler,
         shuffle=False
     )
-    data_iterator = tqdm(
-        static_dataloader,
-        desc = 'Linearizing dataset',
-        leave = True,
-        disable = silent,
-    )   
+    # data_iterator = tqdm(
+    #     static_dataloader,
+    #     desc = 'Linearizing dataset',
+    #     leave = True,
+    #     disable = silent,
+    # )   
     test_dataset(dataset)    
     features = []
     actual   = []
@@ -312,7 +312,9 @@ def train(dataset: torch.utils.data.Dataset,
           update_freq: int = 10,
           evaluate_batch_size: int = 1024,
           update_callback: Optional[Callable[[float, float], None]] = None,
-          epoch_callback: Optional[Callable[[int, torch.nn.Module], None]] = None) -> None:
+          epoch_callback: Optional[Callable[[int, torch.nn.Module], None]] = None,
+          start_time: Optional[float, None],          
+          ) -> None:
     """
     Train the DEC model given a dataset, a model instance and various configuration parameters.
 
@@ -332,6 +334,7 @@ def train(dataset: torch.utils.data.Dataset,
     :param evaluate_batch_size: batch size for evaluation stage, default 1024
     :param update_callback:sample_weight optional function of accuracy and loss to update, default None
     :param epoch_callback: optional function of epoch and model, default None
+    :param start_time: optional starting time of training process, default None
     :return: None
     """
     static_dataloader = DataLoader(
@@ -368,9 +371,15 @@ def train(dataset: torch.utils.data.Dataset,
     
     if reinitKMeans:
         # get all data needed for KMeans.
+        if start_time is not None:
+            print('\nLinearizing data')
+            print(f'@ {time.time() - start_time}\n')
         features, actual, idxs, boxs, videos, frames = DataSetExtract(dataset, wdec)
                
         # KMeans.
+        if start_time is not None:
+            print('\nPerforming KMeans')
+            print(f'@ {time.time() - start_time}\n')
         predicted, kmeans = SSKMeans(
             wdec, features, actual, idxs, boxs, videos, frames
         )
