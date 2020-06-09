@@ -199,7 +199,7 @@ def DataSetExtract(
         batch_size: int = 2000,
         collate_fn = default_collate,
         sampler: Optional[torch.utils.data.sampler.Sampler] = None,
-        cuda: bool = False,
+        cuda: bool = True,
     ):
     '''
     TODO:
@@ -278,6 +278,10 @@ def DataSetExtract(
         else: raise RuntimeError('Dataset is\'nt providing all necessary information: batch, label, idx, box, video')
         if cuda:
             batch = batch.cuda(non_blocking = True)
+            wdec.cuda()
+        else:
+            batch = batch.cpu()
+            wdec.cpu()
         if wdec is not None:
             features.append(wdec.encoder(batch).detach().cpu())
         else:
@@ -383,7 +387,6 @@ def train(dataset: torch.utils.data.Dataset,
         predicted, kmeans = SSKMeans(
             wdec, features, actual, idxs, boxs, videos, frames
         )
-        del features, boxs, videos, frames
         # Computing the positive ration scores and the positive ratio clusters
         cpr = PositiveRatioClusters(
             predicted, actual, wdec.assignment.cluster_number,
@@ -398,6 +401,7 @@ def train(dataset: torch.utils.data.Dataset,
             [idxs.reshape(-1,1), torch.tensor(predicted).reshape(-1,1).long()],
             dim = -1
         )
+        del features, actual, idxs, boxs, videos, frames
         if cuda:
             cluster_centers = cluster_centers.cuda(non_blocking=True)
         with torch.no_grad():
