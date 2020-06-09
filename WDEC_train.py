@@ -313,7 +313,7 @@ def train(dataset: torch.utils.data.Dataset,
           evaluate_batch_size: int = 1024,
           update_callback: Optional[Callable[[float, float], None]] = None,
           epoch_callback: Optional[Callable[[int, torch.nn.Module], None]] = None,
-          start_time: Optional[float, None] = None,           
+          start_time: Optional[float] = None,           
           ) -> None:
     """
     Train the DEC model given a dataset, a model instance and various configuration parameters.
