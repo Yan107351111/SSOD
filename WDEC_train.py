@@ -405,6 +405,7 @@ def train(dataset: torch.utils.data.Dataset,
         )
         del features, actual, idxs, boxs, videos, frames
         if cuda:
+            wdec.cuda()
             cluster_centers = cluster_centers.cuda(non_blocking=True)
         with torch.no_grad():
             # initialise the cluster centers
