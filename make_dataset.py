@@ -23,6 +23,12 @@ if __name__ == '__main__':
     data_path = sys.argv[1]
     label = sys.argv[2]
     out_dir = sys.argv[3]
+    if len(sys.argv)>5:
+        region_num  = sys.argv[4]
+        region_skip = sys.argv[5]
+    else:
+        region_num  = 2000
+        region_skip = 2
     torch.manual_seed(42)
     
     dfname = f'dataset_{label}_'+str(datetime.date.today()).replace('-', '_')
@@ -62,8 +68,8 @@ if __name__ == '__main__':
 
     region_floder = os.path.join(out_dir, dfname, 'regions')
     
-    selective_search(os.path.join(out_dir, dfname, 'positive'), region_floder,)
-    selective_search(os.path.join(out_dir, dfname, 'negative'), region_floder,)
+    selective_search(os.path.join(out_dir, dfname, 'positive'), region_floder, region_num = 50, region_skip = 10)
+    selective_search(os.path.join(out_dir, dfname, 'negative'), region_floder, region_num = 50, region_skip = 10)
 
 
 
