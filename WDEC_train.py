@@ -68,7 +68,7 @@ def SSKMeans(
         DESCRIPTION.
     '''
     # print('\n\n\n')
-    # print('performing KMeans')
+    print('\nperforming KMeans\n')
     # print('\n\n\n')
     
     kmeans = KMeans(n_clusters=wdec.cluster_number, n_init=20)
@@ -255,15 +255,9 @@ def DataSetExtract(
     )
     data_iterator = tqdm(
         static_dataloader,
-        leave=True,
-        unit='batch',
-        postfix={
-            'epo': -1,
-            'acc': '%.4f' % 0.0,
-            'lss': '%.8f' % 0.0,
-            'dlb': '%.4f' % -1,
-        },
-        disable=silent
+        desc = 'Linearizing dataset',
+        leave = True,
+        disable = silent,
     )   
     test_dataset(dataset)    
     features = []

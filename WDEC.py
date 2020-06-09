@@ -15,6 +15,7 @@ from ptdec.dec import WDEC
 import ptsdae.model as ae
 from ptsdae.sdae import StackedDenoisingAutoEncoder
 import sys
+import time
 import torch
 from torch import nn
 from torch.utils.data import WeightedRandomSampler, TensorDataset, DataLoader
@@ -22,6 +23,7 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from WDEC_train import train, DataSetExtract, PotentialScores
 
+start_time = time.time()
 
 torch.manual_seed(0)
 
@@ -118,6 +120,7 @@ K = 50
 MAX_EPOCHS = 35
 
 print('WDEC stage.')
+print(f'@ {time.time() - start_time}')
 wdec = WDEC(
     cluster_number    = K,
     hidden_dimension  = 10, ### TODO: what is the WDEC architecture they used (question no.5 in notebook)
@@ -165,7 +168,8 @@ for epoch in range(MAX_EPOCHS):
     #print(f'epoch: {epoch} ;reinitKMeans: {reinitKMeans}')
     #print('\n\n\n')
       
-    print('Training WDEC\n')  
+    print('\nTraining WDEC')  
+    print(f'@ {time.time() - start_time}\n')
     train(
         dataset        = ds_train,
         wdec           = wdec,
@@ -178,7 +182,8 @@ for epoch in range(MAX_EPOCHS):
     )
     
     #print('\n\n\n')
-    #print('Preparing detector training dataloader')
+    print('\nPreparing detector training dataloader')
+    print(f'@ {time.time() - start_time}\n')
     #print('\n\n\n')
     
     # Train a region classifier with sampled positive and negative regions 
@@ -262,7 +267,8 @@ for epoch in range(MAX_EPOCHS):
         batch_size = batch_size,
         sampler    = sampler_det,
     )
-    print('Training detector\n')
+    print('\nTraining detector')
+    print(f'@ {time.time() - start_time}\n')
     det_trainer.fit(dl_det, num_epochs = 1, start_epoch = epoch)
     
     pickle.dump(detector, open(detector_path, 'wb'))

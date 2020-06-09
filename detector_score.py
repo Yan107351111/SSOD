@@ -42,7 +42,7 @@ def detect(detector, image_path,):
     return bounding_boxes[prediction]
 
 
-def evaluate(model, data_path, ground_truth_path):
+def evaluate(model, data_path, ground_truth_path, threshold = 0.3):
     images = [i for i in os.listdir(data_path)
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]   
     IOUs = []    
@@ -56,7 +56,7 @@ def evaluate(model, data_path, ground_truth_path):
         bounding_box = detect(model, image_path)
         if ground_truth is None:
             continue ############## TODO: figure out what to do here
-        else: IOUs.append(get_iou(bounding_box, ground_truth)) 
+        else: IOUs.append(get_iou(bounding_box, ground_truth)>threshold) 
     
     return torch.mean(torch.stack(IOUs))
 

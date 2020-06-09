@@ -119,9 +119,6 @@ def selective_search(
                     continue
                 # crop, resize and save
                 crop = image[y:y+h, x:x+w]
-                label = image_name.split('/')[0]
-                try: os.mkdir(os.path.join(out_path, label))
-                except: pass
                 region = cv2.resize(crop, imsize, interpolation = cv2.INTER_AREA)
                 if to_file:
                     cv2.imwrite(
