@@ -267,7 +267,7 @@ def DataSetExtract(
     boxs     = []
     frames   = []    
     # form initial cluster centres
-    for index, batch in enumerate(data_iterator):
+    for index, batch in enumerate(static_dataloader):
         if (isinstance(batch, tuple) or isinstance(batch, list)) and len(batch) > 3:
             batch, label, idx, box, video, frame = batch  # if we have a prediction label, separate it to actual
             actual.append(label)
@@ -313,7 +313,7 @@ def train(dataset: torch.utils.data.Dataset,
           evaluate_batch_size: int = 1024,
           update_callback: Optional[Callable[[float, float], None]] = None,
           epoch_callback: Optional[Callable[[int, torch.nn.Module], None]] = None,
-          start_time: Optional[float, None],          
+          start_time: Optional[float, None] = None,           
           ) -> None:
     """
     Train the DEC model given a dataset, a model instance and various configuration parameters.
