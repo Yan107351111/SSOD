@@ -25,7 +25,7 @@ class TransDataset(Dataset):
         return len(self.tensors[0])
     def __getitem__(self, index):
         if self.transforms is not None:
-            x = self.transforms(self.tensors[index])
+            x = self.transforms(self.tensors[index].float())
             return (x,)
         return (self.tensors[index],)
 from torch.utils.data import TensorDataset, DataLoader
@@ -51,13 +51,14 @@ def detect(detector, image_path,):
     dl = DataLoader(ds, batch_size = 512)
     features = []
     print('\nextraction region features\n')
-    for regions in dl:
+    for regions, in dl:
         with torch.no_grad():
             # print(regions)
+            print('\nrunning through feature_extractor\n')
             features.append(feature_extractor(regions))
     features = torch.cat(features)
     ds = TensorDataset(features)
-    dl = DataLoader(sd, batch_size = 512)
+    dl = DataLoader(ds, batch_size = 512)
     predictions = []
     print('\nclassifing regions\n')
     for feature in dl:
@@ -83,7 +84,7 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3):
         print('\nperforming detection\n')
         bounding_box = detect(model, image_path)
         
-        else: IOUs.append(get_iou(bounding_box, ground_truth)>threshold) 
+        IOUs.append(get_iou(bounding_box, ground_truth)>threshold) 
     
     return torch.mean(torch.stack(IOUs))
 
