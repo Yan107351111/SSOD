@@ -40,6 +40,7 @@ feature_extractor.eval()
 
 
 def detect(detector, image_path,):
+    print('\nproposing regions\n')
     regions, bounding_boxes = selective_search(image_path, None, None, to_file = False)
     transform = T.Compose(
             [lambda x: x.permute(2,0,1),
@@ -48,12 +49,6 @@ def detect(detector, image_path,):
              ])
     ds = TransDataset(regions, transforms = transform)
     dl = DataLoader(ds, batch_size = 512)
-    features = []
-    for regions, in dl:
-    print('\nproposing regions\n')
-    regions, bounding_boxes = selective_search(image_path, to_file = False)
-    ds = TensorDataset(regions)
-    dl = DataLoader(sd, batch_size = 512)
     features = []
     print('\nextraction region features\n')
     for regions in dl:
