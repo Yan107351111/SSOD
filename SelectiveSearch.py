@@ -17,8 +17,11 @@ from typing import Union, Tuple
 
 def selective_search(
         data_path: str, out_path: str, label: str = None,
-        region_num: int = 2000, region_skip: int = 2, imsize: Union[int, Tuple] = 299,
-        min_width: int = 30, min_hight: int = 30, min_size: int = 200, to_file = True):
+        region_num: int = 2000, region_skip: int = 2,
+        imsize: Union[int, Tuple] = 299,
+        min_width: int = 30, min_hight: int = 30,
+        min_size: int = 200,
+        to_file = True, silent = False):
     '''
     perform selective search on images in folder "data_path".
     output rescaled to "imsize" images will be saved at "out_path".
@@ -91,7 +94,7 @@ def selective_search(
     # start_time  = time.time()
     regions = []
     bounding_boxs = []
-    for image_name in tqdm(image_names):
+    for image_name in tqdm(image_names, disable = silent):
         # count+=1
         # if count%500==0:
         #     print(f'runing time:{time.time()-start_time}')
