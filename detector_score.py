@@ -5,15 +5,29 @@ Created on Sun Jun  7 16:38:10 2020
 
 @author: yanivzis@bm
 """
-
+from DSD import get_iou
+import os
 import pickle
 import pretrainedmodels
-import sys
 from SelectiveSearch import selective_search
+import sys
 import torch
 from torch import nn
-from torch.utils.data import TensorDataset, DataLoader
-from DSD import get_iou
+from torch.utils.data import Dataset, DataLoader
+import torchvision.transforms as T
+
+class TransDataset(Dataset):
+    def __init__(self, tensors, transforms = None):
+        super().__init__()
+        self.tensors = tensors
+        self.transforms = transforms
+    def __len__(self,):
+        return len(self.tensors[0])
+    def __getitem__(self, index):
+        if self.transforms is not None:
+            x = self.transforms(self.tensors[index])
+            return (x,)
+        return (self.tensors[index],)
 
 model_name = 'inceptionresnetv2'
 feature_extractor = pretrainedmodels.__dict__[model_name](
@@ -23,12 +37,18 @@ feature_extractor.eval()
 
 
 def detect(detector, image_path,):
-    regions, bounding_boxes = selective_search(image_path, to_file = False)
-    ds = TensorDataset(regions)
-    dl = DataLoader(sd, batch_size = 512)
+    regions, bounding_boxes = selective_search(image_path, None, None, to_file = False)
+    transform = T.Compose(
+            [lambda x: x.permute(2,0,1),
+             T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+             ])
+    ds = TransDataset(regions, transforms = transform)
+    dl = DataLoader(ds, batch_size = 512)
     features = []
-    for regions in dl:
+    for regions, in dl:
         with torch.no_grad():
+            # print(regions)
             features.append(feature_extractor(regions))
     features = torch.cat(features)
     ds = TensorDataset(features)

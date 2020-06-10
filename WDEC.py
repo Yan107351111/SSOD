@@ -189,7 +189,7 @@ for epoch in range(MAX_EPOCHS):
     
     # Train a region classifier with sampled positive and negative regions 
     # get all data needed to compute the potential scores.
-    features, actual, idxs, boxs, videos, frames = DataSetExtract(ds_train)
+    features, actual, idxs, boxs, videos, frames = DataSetExtract(ds_train, cuda = False)
     
     
     

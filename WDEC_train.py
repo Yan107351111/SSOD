@@ -14,7 +14,7 @@ from PotentialScoring import PotentialScores
 # from ptsdae.sdae import StackedDenoisingAutoEncoder
 # import ptsdae.model as ae
 # from ptdec.dec import WDEC
-from ptdec.model import predict
+# from ptdec.model import predict
 from ptdec.utils import target_distribution, cluster_accuracy
 
 from sklearn.cluster import KMeans
@@ -428,7 +428,7 @@ def train(dataset: torch.utils.data.Dataset,
         _, accuracy = cluster_accuracy(predicted.cpu().numpy(), actual.cpu().numpy())
         
     if start_time is not None:
-        print('\trainint DEC')
+        print('\ntrainint DEC')
         print(f'@ {time.time() - start_time}\n')
 
     loss_function = nn.KLDivLoss(size_average=False)
@@ -547,6 +547,7 @@ def predict(dataset: torch.utils.data.Dataset,
         elif return_actual:
             raise ValueError('Dataset has no actual value to unpack, but return_actual is set.')
         if cuda:
+            model.cuda()
             batch = batch.cuda(non_blocking=True)
             value = value.cuda()
             idxs   = idxs.cuda()            

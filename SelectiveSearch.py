@@ -75,9 +75,11 @@ def selective_search(
     
     if os.path.isfile(data_path):
         image_names = [data_path]
+        single = True
     else:
         image_names = [image_name
                        for image_name in os.listdir(data_path)]
+        single = False
     
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
     try:
@@ -96,7 +98,8 @@ def selective_search(
         #     print(f'processed: {count}/{count_total}')
         #     print(f'remaining time approximately: {(time.time()-start_time)/count*(count_total-count)}')
         # process image for reg props
-        image = cv2.imread(os.path.join(data_path, image_name))
+        if single: image = cv2.imread(image_name)
+        else: image = cv2.imread(os.path.join(data_path, image_name))
         ss.setBaseImage(image)
         ss.switchToSelectiveSearchFast()
         ssresults = ss.process()
