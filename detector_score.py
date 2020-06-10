@@ -28,6 +28,9 @@ class TransDataset(Dataset):
             x = self.transforms(self.tensors[index])
             return (x,)
         return (self.tensors[index],)
+from torch.utils.data import TensorDataset, DataLoader
+from tqdm import tqdm
+from DSD import get_iou
 
 model_name = 'inceptionresnetv2'
 feature_extractor = pretrainedmodels.__dict__[model_name](
@@ -67,7 +70,7 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3):
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]   
     IOUs = []    
     bb_dict = pickle.load(open(ground_truth_path, 'rb'))
-    for image in images:
+    for image in tqdm(images, desc = 'processing images'):
         if image in list(bb_dict):
             ground_truth = bb_dict[image]
         else:
