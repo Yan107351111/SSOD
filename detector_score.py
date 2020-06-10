@@ -13,6 +13,7 @@ from SelectiveSearch import selective_search
 import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
+from tqdm import tqdm
 from DSD import get_iou
 
 model_name = 'inceptionresnetv2'
@@ -47,7 +48,7 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3):
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]   
     IOUs = []    
     bb_dict = pickle.load(open(ground_truth_path, 'rb'))
-    for image in images:
+    for image in tqdm(images, desc = 'processing images'):
         if image in list(bb_dict):
             ground_truth = bb_dict[image]
         else:
