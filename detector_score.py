@@ -39,7 +39,7 @@ feature_extractor.eval()
 
 
 
-def detect(detector, image_path,):
+def detect(detector, image_path, device = 'cpu'):
     print('\nproposing regions\n')
     regions, bounding_boxes = selective_search(image_path, None, None, to_file = False)
     transform = T.Compose(
@@ -55,6 +55,7 @@ def detect(detector, image_path,):
         with torch.no_grad():
             # print(regions)
             print('\nrunning through feature_extractor\n')
+            regions.to(device)
             features.append(feature_extractor(regions))
     features = torch.cat(features)
     ds = TensorDataset(features)
@@ -63,13 +64,14 @@ def detect(detector, image_path,):
     print('\nclassifing regions\n')
     for feature in dl:
         with torch.no_grad():
-            predictions.append(detector(regions))
+            feature.to(device)
+            predictions.append(detector(feature))
     predictions = torch.cat(predictions)
     prediction  = torch.argmax(predictions[:,1])
     return bounding_boxes[prediction]
 
 
-def evaluate(model, data_path, ground_truth_path, threshold = 0.3):
+def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu'):
     images = [i for i in os.listdir(data_path)
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]   
     IOUs = []
@@ -82,7 +84,7 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3):
             continue ############## TODO: figure out what to do here
         image_path = os.path.join(data_path, image)
         print('\nperforming detection\n')
-        bounding_box = detect(model, image_path)
+        bounding_box = detect(model, image_path, device = device)
         
         IOUs.append(get_iou(bounding_box, ground_truth)>threshold) 
     
@@ -93,11 +95,14 @@ if __name__ =='__main__':
     detector_path = sys.argv[1]
     data_path = sys.argv[2]
     ground_truth_path = sys.argv[3]
+    device = 'cpu'
+    
+    feature_extractor.to(device)
     
     print('\nunpacking model\n')
-    detector = pickle.load(open(detector_path, 'rb'))
+    detector = pickle.load(open(detector_path, 'rb')).to(device)
     
-    print(evaluate(detector, data_path, ground_truth_path))
+    print(evaluate(detector, data_path, ground_truth_path), device = device)
     
     
 
