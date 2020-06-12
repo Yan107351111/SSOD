@@ -20,7 +20,7 @@ def selective_search(
         region_num: int = 2000, region_skip: int = 2,
         imsize: Union[int, Tuple] = 299,
         min_width: int = 30, min_hight: int = 30,
-        min_size: int = 200,
+        min_size: int = 200, max_dim_ratio: float = 4,
         to_file = True, silent = False):
     '''
     perform selective search on images in folder "data_path".
@@ -52,6 +52,10 @@ def selective_search(
     min_size : int, optional
         the minimal output image size in pixels.
         The default is 200.
+    max_dim_ratio : float, optional
+        the maximal allowed ratio between the output image
+        hight and width.
+        The default is 4.
 
     Raises
     ------
@@ -120,7 +124,9 @@ def selective_search(
                     continue
                 x,y,w,h = result
                 # if the region is not up to standards, skip it
-                if w<min_width or h<min_hight or w*h<min_size:
+                if w<min_width or h<min_hight or w*h<min_size \
+                   or float(w)/float(h) > max_dim_ratio       \
+                   or float(w)/float(h) < 1/max_dim_ratio:
                     skip+=1
                     continue
                 # crop, resize and save

@@ -12,6 +12,7 @@ import pretrainedmodels
 import sys
 import time
 import torch
+from torch import nn 
 import torchvision
 import torchvision.transforms as T
 from torch.utils.data import Dataset
@@ -19,9 +20,12 @@ from tqdm import tqdm
 from torchvision.datasets import DatasetFolder
 
 model_name = 'inceptionresnetv2'
-feature_extractor = pretrainedmodels.__dict__[model_name](
+inception_resnet_v2 = pretrainedmodels.__dict__[model_name](
     num_classes=1000, pretrained='imagenet')
+inception_resnet_v2_children = [child for child in inception_resnet_v2.children()]
+feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])
 feature_extractor.eval()
+del inception_resnet_v2_children, inception_resnet_v2
 
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""

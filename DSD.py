@@ -186,7 +186,7 @@ def DSDiscover(graph, V_fraction = 0.1, keys = None):
                 a vector of the vertices in the dense subgraph.
     '''
     G = graph.clone()+torch.eye(len(graph)).bool()
-    DSn = torch.round(torch.tensor([len(G)*0.1])).int().item()
+    DSn = torch.round(torch.tensor([len(G)*V_fraction])).int().item()
     V_tag = torch.tensor([])
     while len(V_tag) < DSn:
         v_max = torch.sum(G, dim = 1).argmax().reshape(1)
@@ -200,8 +200,35 @@ def DSDiscover(graph, V_fraction = 0.1, keys = None):
         G[:,neighbor] = 0
         G[neighbor, :] = 0
     return V_tag
+    
+    
+def get_most_connected(graph, V_fraction = 0.1, keys = None):
+    '''
+    get the V_fraction most connnected nodes in the graph.
+    params:
+        graph:  torch.tensor
+                a |V|X|V| edge matrix.
+        V_fraction: float if [0,1)
+                    the minimal number of vertices to include in the dense
+                    subgraph.
+        keys:   torch.tensor
+                the keys of the provided vertices.
+    return:
+        V_tag:  torch.tensor
+                a vector of the vertices in the dense subgraph.
+    '''
+    DSn = torch.round(torch.tensor([len(graph)*V_fraction])).int().item()
+    V_tag = torch.tensor([])
+    while len(V_tag) < DSn:
+        v_max = torch.sum(G, dim = 1).argmax().reshape(1)
+        ### TODO: what is the dense subgraph? V_neighbor or only v_max?
+        if keys is None:
+            V_tag = torch.cat((V_tag.to(v_max.dtype), v_max)) 
+        else:
+            V_tag = torch.cat((V_tag.to(keys.dtype), keys[v_max])) 
+    return V_tag
 
-def DSD(bbs, frames):
+def DSD(bbs, frames, method = 'most_connected'):
     '''
     performe DSD on the provided bounding boxes according to the frames they
     were taken from.
@@ -211,6 +238,8 @@ def DSD(bbs, frames):
         frames: torch.tensor
                 a N long vector of indicators to the frames the coresponding
                 bounding boxes were taken from.
+        method: str. Optional
+                The method for retrival of the nodes of interest in the graph.
     return:
         DS:     torch.tensor
                 a vector of the indices of the bounding boxed chosen as
@@ -235,6 +264,13 @@ def DSD(bbs, frames):
         # print('\n\n\n')
         graph = get_graph(bbs_frm)
         DS  = DSDiscover(graph, keys = indices[frames==frame])
+        if method == 'most_connected':
+            DS  = DSDiscover(graph, keys = indices[frames==frame])
+        elif method == 'DSD':
+            DS  = get_most_connected(graph, keys = indices[frames==frame])
+        else:
+            raise RuntimeError('Discovery method not recognized.'
+                               'Must be one of: \'DSD\', \'most_connected\'')
         DSs = torch.cat((DSs.to(DS.dtype), DS)) 
     return DSs
  
