@@ -78,7 +78,7 @@ def detect(detector, image_path, device = 'cpu'):
 
 def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu', time_dict = None):
     images = [i for i in os.listdir(data_path)
-              if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]   
+              if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]
     IOUs = []
     print('\nunpacking ground truth dictionary\n')
     print(f'\n@ {time.time() - start_time}\n')
@@ -103,7 +103,7 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu
         iou = max(ious)
         IOUs.append(iou>threshold) 
     
-    return torch.mean(torch.stack(IOUs))
+    return torch.mean(torch.stack(IOUs).float())
 
 
 if __name__ =='__main__':
@@ -117,7 +117,7 @@ if __name__ =='__main__':
     print('\nunpacking model\n')
     detector = pickle.load(open(detector_path, 'rb')).to(device)
     start_time = time.time()
-    print(evaluate(detector, data_path, ground_truth_path, device = device, time_dict = time_dict))
+    print(evaluate(detector, data_path, ground_truth_path, device = device,))
     
     
     
