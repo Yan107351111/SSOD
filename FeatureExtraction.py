@@ -27,6 +27,12 @@ feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])
 feature_extractor.eval()
 del inception_resnet_v2_children, inception_resnet_v2
 
+def get_embedded_dim(in_shape: tuple = (3,299,299)):
+    _in = torch.rand(1, *in_shape)
+    _out = feature_extractor(_in)
+    return _out.shape[1]
+    
+    
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
 

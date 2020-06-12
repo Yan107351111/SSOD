@@ -7,7 +7,7 @@ Created on Sun Apr 26 09:35:33 2020
 
 from detector_train import DetectorTrainer
 from DSD import DSD
-from FeatureExtraction import get_dataset
+from FeatureExtraction import get_dataset, get_embedded_dim
 from model import SSDetector
 import pickle
 import pretrainedmodels
@@ -21,6 +21,7 @@ from torch import nn
 from torch.utils.data import WeightedRandomSampler, TensorDataset, DataLoader
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
+from utils import compressed_pickle, decompress_pickle
 from WDEC_train import train, DataSetExtract, PotentialScores
 
 start_time = time.time()
@@ -47,12 +48,12 @@ autoencoder_path = 'autoencoder.p'
 detector_path    = 'detector.p' 
 print('getting dataset')
 try: 
-    ds_train = pickle.load(open(dataset_path, 'rb'))
+    ds_train = decompress_pickle(dataset_path)
     print('prepackaged dataset found and loaded')
 except:
     print('no prepackaged dataset found\ncreating dataset from data_path')
     ds_train = get_dataset(data_path, label)
-    pickle.dump(ds_train, open(dataset_path, 'wb'))
+    compressed_pickle(dataset_path)
 print('got dataset')
 ds_train.output = 2
 
@@ -62,7 +63,7 @@ finetune_epochs   = 500
 training_callback = None
 cuda         = torch.cuda.is_available()
 ds_val       = None
-embedded_dim = 1000
+embedded_dim = get_embedded_dim()
 
 try: autoencoder = pickle.load(open(autoencoder_path, 'rb'))
 except:
