@@ -32,11 +32,14 @@ def get_embedded_dim(in_shape: tuple = (3,299,299)):
     _out = feature_extractor(_in)
     return _out.shape[1]
     
-    
 class FrameRegionProposalsDataset(Dataset):
     """Region proposals from video frames dataset."""
 
-    def __init__(self, root_dir, label, transform=None, output = 6, random_seed = 0):
+    def __init__(self, 
+            root_dir, label, 
+            transform = None, 
+            output = 6, random_seed = 0, _construct = True
+            ):
         '''
         TODO:
 
@@ -57,27 +60,31 @@ class FrameRegionProposalsDataset(Dataset):
         None.
 
         '''
+        if not _construct:
+            return
+        torch.manual_seed(random_seed)    
         self._transformed = False
-        self.root_dir  = root_dir
-        self.transform = transform
-        self.label     = label
-        self.output    = output
-        torch.manual_seed(random_seed)
-        self.video_ref   = {}
-        self.video_deref = {}
-        self.all_items   = []
-        video_hash = 0
+        self.tensors      = None
+        self.root_dir     = root_dir
+        self.transform    = transform
+        self.label        = label
+        self.output       = output
+        self.video_ref    = {}
+        self.video_deref  = {}
+        self.all_items    = []
+        
         # assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
 
         # creating positive item list
-        for i in tqdm(os.listdir(os.path.join(root_dir)), desc = 'Positive sample collection:'):
+        video_hash = 0
+        for i in tqdm(os.listdir(os.path.join(root_dir)), desc = 'Sample collection:'):
             img_path = os.path.join(i)
             self.all_items.append(img_path)
             video_name = i.split(';')[1]
             if video_name not in list(self.video_ref):
-                self.video_ref[video_name] = video_hash
+                self.video_ref[video_name]   = video_hash
                 self.video_deref[video_hash] = video_name
-                video_hash+=1
+                video_hash += 1
         ''' 
         # addign negative items to the list
         other_labels = [olabel for olabel in os.listdir(root_dir)
@@ -125,7 +132,9 @@ class FrameRegionProposalsDataset(Dataset):
         # print(f'item = {item}')
         if not self._transformed:
             img_name = os.path.join(self.root_dir,item)
-            image    = self.transform(plt.imread(img_name))
+            image    = plt.imread(img_name)
+            if self.transform is not None:
+                image    = self.transform(image)
         else: image = self.tensors[idx]
         # image    = image.reshape(1,*image.shape)
         label    = torch.tensor(1.) if item.split(';')[0]==self.label else torch.tensor(0.)
@@ -144,6 +153,71 @@ class FrameRegionProposalsDataset(Dataset):
             return image, label
         return image
         
+    def split(self, frag_num: int = 2):
+        assert frag_num>=2
+        splits = [0]
+        for i in range(1,frag_num):
+            splits.append(i*(len(self)//frag_num))
+        splits.append(len(self))
+        print(splits)
+        frags = []
+        for i in range(frag_num-1):
+            frag = FrameRegionProposalsDataset(None, None, _construct = False)
+            frag._transformed = True
+            frag.root_dir  = self.root_dir
+            frag.transform = self.transform
+            frag.label     = self.label
+            frag.output    = self.output
+            frag.video_ref   = self.video_ref
+            frag.video_deref = self.video_deref
+            frag.all_items   = self.all_items[splits[i]:splits[i+1]]
+            if self._transformed:
+                frag.tensors = self.tensors[splits[i]:splits[i+1]]
+            frags.append(frag)
+        return frags
+        
+    def append(self, other):
+        if self.root_dir     != other.root_dir  \
+           or self.transform != other.transform \
+           or self.label     != other.label:
+            raise RuntimeError('Datasets incompatible')
+        self.video_ref.update(other.video_ref)
+        self.video_deref.update(other.video_deref)
+        self.all_items = self.all_items + other.all_items
+        if self._transformed:
+            self.tensors = torch.cat(self.tensors, other.tensors)
+            
+    def to_pickle(fname, frag_num = 2):
+        splits = [0]
+        for i in range(1,frag_num):
+            splits.append(i*(len(self)//frag_num))
+        splits.append(len(self))
+        for i in range(frag_num-1):
+             tensors = self.tensors[splits[i]:splits[i+1]]
+             pickle.dump(tensors, open(f'tensors{i}.p', 'wb'))
+             
+        pickle.dump(self.duplicate(), open(fname, 'wb'))
+        
+    def duplicate(self):
+        dupe = FrameRegionProposalsDataset(None, None, _construct = False) 
+        dupe._transformed = False
+        dupe.root_dir  = self.root_dir
+        dupe.transform = self.transform
+        dupe.label     = self.label
+        dupe.output    = self.output
+        dupe.video_ref   = self.video_ref
+        dupe.video_deref = self.video_deref
+        dupe.all_items   = self.all_items
+        dupe.tensors = None
+        return dupe
+        
+    def restore(self, data_path = '.'):
+        frags = [i for i in os.listdir(data_path) if i.startswith('tensor')]
+        frags.sort()
+        tensors = []
+        for frag_name in frags:
+            tensors.append(pickle.load(open(frag_name, 'rb')))
+        self.tensors = torch.cat(tensors)
         
 def get_dataloader(data_path, batch_size, label):
     '''
@@ -223,7 +297,7 @@ def get_dataset(data_path, label,):
     train_dataset.output = 1
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=800,
-        shuffle=True, num_workers=2)
+        shuffle=True, num_workers=4)
     tensors = []
     if cuda:
         feature_extractor.cuda()

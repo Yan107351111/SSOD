@@ -44,16 +44,34 @@ if len(sys.argv)>3:
     dataset_path = sys.argv[3]
 else:
     dataset_path = 'ds_train.p'
+if len(sys.argv)>4:
+    dataset_split = sys.argv[4]
+else:
+    dataset_split = 4
 autoencoder_path = 'autoencoder.p'  
 detector_path    = 'detector.p' 
 print('getting dataset')
 try: 
-    ds_train = decompress_pickle(dataset_path)
-    print('prepackaged dataset found and loaded')
+    if dataset_split>1:
+        ds_train = pickle.load(open(dataset_path, 'rb'))
+        ds_train.restore()
+    else:
+        ds_train = pickle.load(open(dataset_path, 'rb')) 
+        print('prepackaged dataset found and loaded')
 except:
     print('no prepackaged dataset found\ncreating dataset from data_path')
     ds_train = get_dataset(data_path, label)
-    compressed_pickle(dataset_path)
+    print(f'size of ds: {sys.getsizeof(ds_train.tensors)}')
+    print(f'nume of ds: {sys.getsizeof(torch.numel(ds_train.tensors))}')
+    if dataset_split>1:
+        ds_train.to_pickle(data_path, dataset_split)
+        
+    #    ds_train_frags = ds_train.split(dataset_split)
+    #    for i, ds_train_frag in enumerate(ds_train_frags):
+    #        frag_name = dataset_path[:-2]+str(i)+dataset_path[-2:]
+    #        pickle.dump(ds_train_frag, open(frag_name, 'wb'))
+    else:
+        pickle.dump(ds_train, open(dataset_path, 'wb'))
 print('got dataset')
 ds_train.output = 2
 
@@ -67,7 +85,7 @@ embedded_dim = get_embedded_dim()
 
 try: autoencoder = pickle.load(open(autoencoder_path, 'rb'))
 except:
-    autoencoder  = StackedDenoisingAutoEncoder(
+    autoencoder = StackedDenoisingAutoEncoder(
             feature_extractor = feature_extractor,
             dimensions = [embedded_dim, 500, 500, 2000, 10],
             final_activation = None,
