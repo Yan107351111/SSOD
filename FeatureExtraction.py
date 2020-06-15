@@ -20,8 +20,11 @@ from tqdm import tqdm
 from torchvision.datasets import DatasetFolder
 
 model_name = 'inceptionresnetv2'
-inception_resnet_v2 = pretrainedmodels.__dict__[model_name](
-    num_classes=1000, pretrained='imagenet')
+try:
+    inception_resnet_v2 = pickle.load(open('../'+model_name+'.p', 'rb'))
+except:
+    inception_resnet_v2 = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
 inception_resnet_v2_children = [child for child in inception_resnet_v2.children()]
 feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])
 feature_extractor.eval()
