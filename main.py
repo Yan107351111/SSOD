@@ -44,6 +44,7 @@ if len(sys.argv)>3:
     dataset_path = sys.argv[3]
 else:
     dataset_path = 'ds_train.p'
+ds_tofile = False
 if len(sys.argv)>4:
     dataset_split = sys.argv[4]
 else:
@@ -52,6 +53,8 @@ autoencoder_path = 'autoencoder.p'
 detector_path    = 'detector.p' 
 print('getting dataset')
 try: 
+    if not ds_tofile:
+        raise
     if dataset_split>1:
         ds_train = pickle.load(open(dataset_path, 'rb'))
         ds_train.restore()
@@ -64,15 +67,16 @@ except:
     print(f'size of ds: {sys.getsizeof(ds_train.tensors)}')
     print(f'nume of ds: {torch.numel(ds_train.tensors)}')
     print(f'tots of ds: {float(torch.numel(ds_train.tensors))*sys.getsizeof(ds_train.tensors)/2**30}')
-    if dataset_split>1:
-        ds_train.to_pickle(dataset_path, dataset_split)
-        
-    #    ds_train_frags = ds_train.split(dataset_split)
-    #    for i, ds_train_frag in enumerate(ds_train_frags):
-    #        frag_name = dataset_path[:-2]+str(i)+dataset_path[-2:]
-    #        pickle.dump(ds_train_frag, open(frag_name, 'wb'))
-    else:
-        pickle.dump(ds_train, open(dataset_path, 'wb'))
+    if ds_tofile:
+        if dataset_split>1:
+            ds_train.to_pickle(dataset_path, dataset_split)
+            
+        #    ds_train_frags = ds_train.split(dataset_split)
+        #    for i, ds_train_frag in enumerate(ds_train_frags):
+        #        frag_name = dataset_path[:-2]+str(i)+dataset_path[-2:]
+        #        pickle.dump(ds_train_frag, open(frag_name, 'wb'))
+        else:
+            pickle.dump(ds_train, open(dataset_path, 'wb'))
 print('got dataset')
 ds_train.output = 2
 
