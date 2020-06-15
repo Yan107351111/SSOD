@@ -8,6 +8,7 @@ from typing import NamedTuple, List
 import io
 from matplotlib import pyplot as plt
 import os
+import pickle
 import pretrainedmodels
 import sys
 import time
@@ -164,7 +165,7 @@ class FrameRegionProposalsDataset(Dataset):
         splits.append(len(self))
         print(splits)
         frags = []
-        for i in range(frag_num-1):
+        for i in range(frag_num):
             frag = FrameRegionProposalsDataset(None, None, _construct = False)
             frag._transformed = True
             frag.root_dir  = self.root_dir
@@ -190,12 +191,12 @@ class FrameRegionProposalsDataset(Dataset):
         if self._transformed:
             self.tensors = torch.cat(self.tensors, other.tensors)
             
-    def to_pickle(fname, frag_num = 2):
+    def to_pickle(self,fname, frag_num = 2):
         splits = [0]
         for i in range(1,frag_num):
             splits.append(i*(len(self)//frag_num))
         splits.append(len(self))
-        for i in range(frag_num-1):
+        for i in range(frag_num):
              tensors = self.tensors[splits[i]:splits[i+1]]
              pickle.dump(tensors, open(f'tensors{i}.p', 'wb'))
              
@@ -203,15 +204,15 @@ class FrameRegionProposalsDataset(Dataset):
         
     def duplicate(self):
         dupe = FrameRegionProposalsDataset(None, None, _construct = False) 
-        dupe._transformed = False
-        dupe.root_dir  = self.root_dir
-        dupe.transform = self.transform
-        dupe.label     = self.label
-        dupe.output    = self.output
-        dupe.video_ref   = self.video_ref
-        dupe.video_deref = self.video_deref
-        dupe.all_items   = self.all_items
-        dupe.tensors = None
+        dupe._transformed = self._transformed
+        dupe.root_dir     = self.root_dir
+        dupe.transform    = self.transform
+        dupe.label        = self.label
+        dupe.output       = self.output
+        dupe.video_ref    = self.video_ref
+        dupe.video_deref  = self.video_deref
+        dupe.all_items    = self.all_items
+        dupe.tensors      = None
         return dupe
         
     def restore(self, data_path = '.'):
