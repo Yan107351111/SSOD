@@ -22,7 +22,7 @@ from torch.utils.data import WeightedRandomSampler, TensorDataset, DataLoader
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import StepLR
 from utils import compressed_pickle, decompress_pickle
-from WDEC_train import train, DataSetExtract, PotentialScores
+from wdec import train, DataSetExtract, PotentialScores
 
 start_time = time.time()
 
@@ -47,7 +47,7 @@ else:
 if len(sys.argv)>4:
     dataset_split = sys.argv[4]
 else:
-    dataset_split = 4
+    dataset_split = 10
 autoencoder_path = 'autoencoder.p'  
 detector_path    = 'detector.p' 
 print('getting dataset')
@@ -62,9 +62,10 @@ except:
     print('no prepackaged dataset found\ncreating dataset from data_path')
     ds_train = get_dataset(data_path, label)
     print(f'size of ds: {sys.getsizeof(ds_train.tensors)}')
-    print(f'nume of ds: {sys.getsizeof(torch.numel(ds_train.tensors))}')
+    print(f'nume of ds: {torch.numel(ds_train.tensors)}')
+    print(f'tots of ds: {float(torch.numel(ds_train.tensors))*sys.getsizeof(ds_train.tensors)/2**30}')
     if dataset_split>1:
-        ds_train.to_pickle(data_path, dataset_split)
+        ds_train.to_pickle(dataset_path, dataset_split)
         
     #    ds_train_frags = ds_train.split(dataset_split)
     #    for i, ds_train_frag in enumerate(ds_train_frags):
