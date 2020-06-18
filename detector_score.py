@@ -33,16 +33,24 @@ from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 from DSD import get_iou
 
-model_name = 'inceptionresnetv2'
-feature_extractor = pretrainedmodels.__dict__[model_name](
-    num_classes=1000, pretrained='imagenet')
-feature_extractor.eval()
+if torch.cuda.device_count()>1:
+    torch.cuda.set_device(1)
 
+model_name = 'inceptionresnetv2'
+try:
+    inception_resnet_v2 = pickle.load(open('../'+model_name+'.p', 'rb'))
+except:
+    inception_resnet_v2 = pretrainedmodels.__dict__[model_name](
+        num_classes=1000, pretrained='imagenet')
+inception_resnet_v2_children = [child for child in inception_resnet_v2.children()]
+feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])
+feature_extractor.eval()
+del inception_resnet_v2_children, inception_resnet_v2
 
 
 def detect(detector, image_path, device = 'cpu'):
-    print('\nproposing regions\n')
-    print(f'\n@ {time.time() - start_time}\n')
+    # print('\nproposing regions\n')
+    # print(f'\n@ {time.time() - start_time}\n')
     regions, bounding_boxes = selective_search(image_path, None, None, to_file = False, silent = True)
     transform = T.Compose(
             [lambda x: x.permute(2,0,1),
@@ -52,21 +60,24 @@ def detect(detector, image_path, device = 'cpu'):
     ds = TransDataset(regions, transforms = transform)
     dl = DataLoader(ds, batch_size = 512)
     features = []
-    print('\nextraction region features\n')
-    print(f'\n@ {time.time() - start_time}\n')
+    # print('\nextraction region features\n')
+    # print(f'\n@ {time.time() - start_time}\n')
     for regions, in dl:
         with torch.no_grad():
             # print(regions)
-            print('\nrunning through feature_extractor\n')
-            print(f'\n@ {time.time() - start_time}\n')
+            #print('\nrunning through feature_extractor\n')
+            #print(f'\n@ {time.time() - start_time}\n')
             regions = regions.to(device)
-            features.append(feature_extractor(regions))
-    features = torch.cat(features)
+            features.append(feature_extractor(regions).reshape(-1,1536))
+    try: features = torch.cat(features)
+    except: 
+        print(features[0].shape, features[-1].shape)
+        features = torch.cat(features)
     ds = TensorDataset(features)
     dl = DataLoader(ds, batch_size = 512)
     predictions = []
-    print('\nclassifing regions\n')
-    print(f'\n@ {time.time() - start_time}\n')
+    # print('\nclassifing regions\n')
+    # print(f'\n@ {time.time() - start_time}\n')
     for feature, in dl:
         with torch.no_grad():
             feature = feature.to(device)
@@ -76,12 +87,13 @@ def detect(detector, image_path, device = 'cpu'):
     return bounding_boxes[prediction]
 
 
-def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu', time_dict = None):
+def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu', time_dict = None, SMT = 1):
+    model.SMTemp = SMT
     images = [i for i in os.listdir(data_path)
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]
     IOUs = []
-    print('\nunpacking ground truth dictionary\n')
-    print(f'\n@ {time.time() - start_time}\n')
+    # print('\nunpacking ground truth dictionary\n')
+    # print(f'\n@ {time.time() - start_time}\n')
     bb_dict = pickle.load(open(ground_truth_path, 'rb'))
     for image in tqdm(images, desc = 'processing images'):
         ious = []
@@ -91,11 +103,11 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu
             else: continue
         else: continue ############## TODO: figure out what to do here
         image_path = os.path.join(data_path, image)
-        print('\nperforming detection\n')
-        print(f'\n@ {time.time() - start_time}\n')
+        # print('\nperforming detection\n')
+        # print(f'\n@ {time.time() - start_time}\n')
         bounding_box = detect(model, image_path, device = device).reshape(1, -1).to(device).float()
-        print('\ncomputing IOU\n')
-        print(f'\n@ {time.time() - start_time}\n')
+        # print('\ncomputing IOU\n')
+        # print(f'\n@ {time.time() - start_time}\n')
         # print(bounding_box)
         # print(ground_truths)       
         for gt in ground_truths:
@@ -114,10 +126,17 @@ if __name__ =='__main__':
     
     feature_extractor.to(device)
     
-    print('\nunpacking model\n')
+    # print('\nunpacking model\n')
     detector = pickle.load(open(detector_path, 'rb')).to(device)
     start_time = time.time()
-    print(evaluate(detector, data_path, ground_truth_path, device = device,))
+    temperaturs = [1e4, 1e3, 1e2, 1e1]
+    results = dict()
+    for temp in temperaturs:
+        results[temp] = evaluate(
+            detector, data_path, ground_truth_path,
+            device = device, SMT = temp) 
+    
+    print(results)
     
     
     

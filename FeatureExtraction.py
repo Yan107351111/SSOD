@@ -124,7 +124,8 @@ class FrameRegionProposalsDataset(Dataset):
         
 
     def __len__(self):
-        return len(self.all_items)
+        if self._transformed: return len(self.tensors)
+        else: return len(self.all_items)
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
@@ -300,17 +301,18 @@ def get_dataset(data_path, label,):
     )
     train_dataset.output = 1
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=800,
+        train_dataset, batch_size=1500,
         shuffle=True, num_workers=4)
     tensors = []
     if cuda:
         feature_extractor.cuda()
-    for batch in tqdm(train_dataloader, desc = 'extracting features:'):
+    for ii, batch in enumerate(tqdm(train_dataloader, desc = 'extracting features:')):
         if cuda:
             batch = batch.cuda()
         with torch.no_grad():
-             tensors.append(feature_extractor(batch).cpu())
+             tensors.append(feature_extractor(batch).cpu().squeeze())
     tensors = torch.cat(tensors)
+    print(tensors.shape)
     train_dataset.tensors = tensors
     train_dataset._transformed = True 
     train_dataset.output = 6

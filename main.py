@@ -25,7 +25,8 @@ from utils import compressed_pickle, decompress_pickle
 from wdec import train, DataSetExtract, PotentialScores
 
 start_time = time.time()
-
+if torch.cuda.device_count()>1:
+    torch.cuda.set_device(1)
 torch.manual_seed(0)
 
 # model_name = 'inceptionresnetv2'
@@ -37,8 +38,8 @@ feature_extractor = nn.Identity()
 # get dataset and dataloader
 print('preparing prerequisites')
 data_path    = sys.argv[1] # '../../data/region_proposals'
-batch_size   = 256
-batch_num    = 1000
+batch_size   = 400
+batch_num    = 100000
 label        = sys.argv[2] # 'bike'
 if len(sys.argv)>3:
     dataset_path = sys.argv[3]
@@ -49,7 +50,8 @@ if len(sys.argv)>4:
     dataset_split = sys.argv[4]
 else:
     dataset_split = 10
-autoencoder_path = 'autoencoder.p'  
+autoencoder_path = 'autoencoder.p'
+wdec_path        = 'wdec.p'  
 detector_path    = 'detector.p' 
 print('getting dataset')
 try: 
@@ -296,6 +298,7 @@ for epoch in range(MAX_EPOCHS):
     print(f'@ {time.time() - start_time}\n')
     det_trainer.fit(dl_det, num_epochs = 1, start_epoch = epoch)
     
+    pickle.dump(wdec, open(wdec_path, 'wb'))
     pickle.dump(detector, open(detector_path, 'wb'))
     
     
