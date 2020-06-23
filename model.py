@@ -18,7 +18,8 @@ class SSDetector(nn.Module):
         self.dropout = nn.Dropout(0.8)
         self.llayer2 = nn.Linear(1024, 2)
         self.softmax = nn.Softmax(-1)
-        self.SMTemp  = 1
+        self.SMTemp  = 1.
+        self._activate = True
 
         
     def forward(self, x):
@@ -29,6 +30,7 @@ class SSDetector(nn.Module):
         y = self.llayer1(y)
         y = self.dropout(y)
         y = self.llayer2(y)
-        y = self.softmax(y/self.SMTemp)
+        if self._activate:
+            y = self.softmax(y/self.SMTemp)
         
         return y

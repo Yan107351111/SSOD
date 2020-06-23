@@ -6,6 +6,7 @@ Created on Sun Jun  7 16:38:10 2020
 @author: yanivzis@bm
 """
 from DSD import get_iou
+from model import SSDetector
 import os
 import pickle
 import pretrainedmodels
@@ -88,7 +89,7 @@ def detect(detector, image_path, device = 'cpu'):
 
 
 def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu', time_dict = None, SMT = 1):
-    model.SMTemp = SMT
+    model._activate = False
     images = [i for i in os.listdir(data_path)
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]
     IOUs = []
@@ -110,7 +111,8 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu
         # print(f'\n@ {time.time() - start_time}\n')
         # print(bounding_box)
         # print(ground_truths)       
-        for gt in ground_truths:
+        for gt_ in ground_truths:
+            gt = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]]).cuda()
             ious.append(get_iou(bounding_box, gt.reshape(1,-1)))
         iou = max(ious)
         IOUs.append(iou>threshold) 
@@ -127,9 +129,11 @@ if __name__ =='__main__':
     feature_extractor.to(device)
     
     # print('\nunpacking model\n')
-    detector = pickle.load(open(detector_path, 'rb')).to(device)
+    # detector = pickle.load(open(detector_path, 'rb')).to(device)
+    detector = torch.load(detector_path)
+
     start_time = time.time()
-    temperaturs = [1e4, 1e3, 1e2, 1e1]
+    temperaturs = [1]
     results = dict()
     for temp in temperaturs:
         results[temp] = evaluate(

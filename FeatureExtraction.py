@@ -4,7 +4,8 @@ Created on Sun Apr 26 09:33:57 2020
 
 @author: yan10
 """
-from typing import NamedTuple, List
+
+from DSD import get_iou
 import io
 from matplotlib import pyplot as plt
 import os
@@ -17,8 +18,10 @@ from torch import nn
 import torchvision
 import torchvision.transforms as T
 from torch.utils.data import Dataset
-from tqdm import tqdm
 from torchvision.datasets import DatasetFolder
+from tqdm import tqdm
+from typing import NamedTuple, List
+
 
 model_name = 'inceptionresnetv2'
 try:
@@ -66,7 +69,8 @@ class FrameRegionProposalsDataset(Dataset):
         '''
         if not _construct:
             return
-        torch.manual_seed(random_seed)    
+        torch.manual_seed(random_seed)   
+        self._fully_supervised = False
         self._transformed = False
         self.tensors      = None
         self.root_dir     = root_dir
@@ -121,7 +125,6 @@ class FrameRegionProposalsDataset(Dataset):
                 video_hash+=1
           '''  
         
-        
 
     def __len__(self):
         if self._transformed: return len(self.tensors)
@@ -131,10 +134,12 @@ class FrameRegionProposalsDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        # print(f'getting item {idx} out of {len(self)}')
+        if self._fully_supervised:
+            image = self.tensors[idx]
+            label = self.true_labels[idx]
+            return image, label 
         
         item = self.all_items[idx]
-        # print(f'item = {item}')
         if not self._transformed:
             img_name = os.path.join(self.root_dir,item)
             image    = plt.imread(img_name)
@@ -224,6 +229,42 @@ class FrameRegionProposalsDataset(Dataset):
             tensors.append(pickle.load(open(frag_name, 'rb')))
         self.tensors = torch.cat(tensors)
         
+    def add_full_supervision(self, bb_dict: dict, iou_threshold: float = 0.5):
+        '''
+        
+
+        Parameters
+        ----------
+        bb_dict : dict
+            dictionary mapping whole image name to the bounding boxs in the
+            image.self
+        iou_threshold : float, optional
+            The threshold overwhich the region will be considered a positive
+            detection.
+            The default is 0.5.
+
+        Returns
+        -------
+        None.
+
+        '''
+        self.true_labels = torch.zeros((len(self.all_items)))
+        for ii, item in enumerate(self.all_items):
+            lebel = item.split(';')[0]
+            video = os.path.split(item)[1].split(';')[1]
+            frame = item.split(';')[2]
+            box   = torch.tensor([int(i) for i in item.split(';')[3:7]])
+            im_name = lebel+';'+video+';'+frame+'.png'
+            if im_name in list(bb_dict):
+                if bb_dict[im_name] is None:
+                    continue
+                for gt_ in bb_dict[im_name]:
+                    gt = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]]).cuda()
+                    if get_iou(box.reshape(1,-1).cpu().float(), gt.reshape(1,-1).cpu().float()) > iou_threshold:
+                        self.true_labels[ii] = 1
+        self._fully_supervised = True
+        self.output = 2
+        
 def get_dataloader(data_path, batch_size, label):
     '''
     TODO:
@@ -311,6 +352,7 @@ def get_dataset(data_path, label,):
             batch = batch.cuda()
         with torch.no_grad():
              tensors.append(feature_extractor(batch).cpu().squeeze())
+        break
     tensors = torch.cat(tensors)
     print(tensors.shape)
     train_dataset.tensors = tensors
