@@ -1,5 +1,6 @@
 # SSOD
 ![pytorch](https://img.shields.io/badge/implemented%20in-pytorch-blue)
+
 Self-Supervised Object Detection reimplementation
 
 Reimplementation of the paper "Learning to Detect and Retrieve Objects from Unlabeled Videos" [https://arxiv.org/abs/1905.11137]
