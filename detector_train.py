@@ -30,7 +30,7 @@ class Trainer(abc.ABC):
     - Single batch (train_batch/test_batch)
     """
 
-    def __init__(self, model, loss_fn, optimizer, scheduler = None, device='cpu'):
+    def __init__(self, model, loss_fn, optimizer, backbone = None, scheduler = None, device='cpu'):
         """
         Initialize the trainer.
         :param model: Instance of the model to train.
@@ -44,9 +44,12 @@ class Trainer(abc.ABC):
         self.optimizer = optimizer
         self.device = device
         self.scheduler = scheduler
+        self.backbone = backbone
         if torch.cuda.is_available():
             self.device = 'cuda'
         model.to(self.device)
+        if backbone is not None:
+            self.backbone.to(self.device)
 
     def fit(self, dl_train: DataLoader, dl_test: DataLoader = None,
             num_epochs = 100, checkpoints: str = None,
@@ -101,7 +104,8 @@ class Trainer(abc.ABC):
             #  - Save losses and accuracies in the lists above.
             #  - Implement early stopping. This is a very useful and
             #    simple regularization technique that is highly recommended.
-            # ====== YOUR CODE: ======
+            # ====== YOUR CODE: ====== 
+            
             kw['verbose'] = verbose
             res = self.train_epoch(dl_train, **kw)
             train_loss.append(torch.mean((torch.tensor(res.losses))).item())
@@ -244,8 +248,8 @@ class Trainer(abc.ABC):
 
 
 class DetectorTrainer(Trainer):
-    def __init__(self, model, loss_fn, optimizer, scheduler = None, device=None):
-        super().__init__(model, loss_fn, optimizer, scheduler, device)
+    def __init__(self, model, loss_fn, optimizer, backbone = None, scheduler = None, device=None):
+        super().__init__(model, loss_fn, optimizer, backbone = backbone, scheduler = scheduler, device = device)
 
     def train_epoch(self, dl_train: DataLoader, **kw):
         # TODO: Implement modifications to the base method, if needed.
@@ -262,13 +266,19 @@ class DetectorTrainer(Trainer):
         return super().test_epoch(dl_test, **kw,)
 
     def train_batch(self, batch, **kw) -> BatchResult:
-        x, y = batch
+        x, y, idx = batch
         x    = x.to(self.device, dtype=torch.float,)  
         y    = y.to(self.device, dtype=torch.float,)
         
+        if self.backbone is not None:
+            with torch.no_grad():
+                x = self.backbone(x)
         self.optimizer.zero_grad()
         y_hat = self.model(x,)
         
+        #print(y_hat)
+        
+        self.model.train_labels[idx] = torch.argmax(y_hat.clone().detach().cpu(), -1).float()
         # print('\n\n\n')
         # print(f'y.shape = {y.shape}')
         # print('\n\n\n')
@@ -288,12 +298,15 @@ class DetectorTrainer(Trainer):
 
 
     def test_batch(self, batch, **kw,) -> BatchResult:
-        x, y = batch
+        x, y, idx = batch
         x = x.to(self.device, dtype=torch.float,)
         y = y.to(self.device, dtype=torch.float,) 
 
         with torch.no_grad():
+            if self.backbone is not None:
+                x = self.backbone(x)
             y_hat = self.model(x,)
+            self.model.test_labels[idx] = torch.argmax(y_hat.clone().detach().cpu(), -1).float()
             loss  = self.loss_fn(y_hat, y,)
             y_pred      = torch.argmax(y_hat, dim = -1)
             num_correct = torch.sum(y==y_pred)

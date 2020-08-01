@@ -8,15 +8,20 @@ import torch
 from torch import nn
 
 class SSDetector(nn.Module):
-    def __init__(self,feature_extractor, embedded_dim):
+    def __init__(self, embedded_dim):
         super().__init__()
-        self.feature_extractor = feature_extractor
-        self.llayer0 = nn.Linear(embedded_dim, 1024)
-        self.relu    = nn.ReLU()
-        self.dropout = nn.Dropout(0.8)
-        self.llayer1 = nn.Linear(1024, 1024)
-        self.dropout = nn.Dropout(0.8)
-        self.llayer2 = nn.Linear(1024, 2)
+        
+        layers = []
+        layers.append(nn.Linear(embedded_dim, 1024))
+        layers.append(nn.ReLU())
+        layers.append(nn.Dropout(0.8))
+        layers.append(nn.Linear(1024, 1024))
+        layers.append(nn.ReLU())
+        layers.append(nn.Dropout(0.8))
+        layers.append(nn.Linear(1024, 2))
+        
+        self.classifier = nn.Sequential(*layers) 
+        
         self.softmax = nn.Softmax(-1)
         self.SMTemp  = 1.
         self._activate = True
@@ -24,12 +29,8 @@ class SSDetector(nn.Module):
         
     def forward(self, x):
         
-        y = self.llayer0(x)
-        y = self.relu(y)
-        y = self.dropout(y)
-        y = self.llayer1(y)
-        y = self.dropout(y)
-        y = self.llayer2(y)
+        y = self.classifier(x)
+        
         if self._activate:
             y = self.softmax(y/self.SMTemp)
         

@@ -66,10 +66,10 @@ if __name__ == '__main__':
             os.path.join(out_dir, dfname, 'negative', img.split('/')[-1])
         )
 
-    region_floder = os.path.join(out_dir, dfname, 'regions')
+    region_folder = os.path.join(out_dir, dfname, 'regions')
     
-    selective_search(os.path.join(out_dir, dfname, 'positive'), region_floder, region_num = 50, region_skip = 10)
-    selective_search(os.path.join(out_dir, dfname, 'negative'), region_floder, region_num = 50, region_skip = 10)
+    selective_search(os.path.join(out_dir, dfname, 'positive'), region_folder, region_num = region_num, region_skip = region_skip)
+    selective_search(os.path.join(out_dir, dfname, 'negative'), region_folder, region_num = region_num, region_skip = region_skip)
 
 
 

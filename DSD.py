@@ -20,7 +20,7 @@ def get_iou(bb1, bb2):
         dims: 0: points; 1: x, y, w, h
         The x, y position is at the top left corner,
         the w, h dimentions of the box
-    bb1 : torch.tensor
+    bb2 : torch.tensor
         dims: 0: points; 1: x, y, w, h
         The x, y position is at the top left corner,
         the w, h dimentions of the box
@@ -64,12 +64,12 @@ def get_iou(bb1, bb2):
     # assert iou <= 1.0
     return iou
 
-def get_iou_slow_af(bb1, bb2):
+def get_iou_slow_af(bb1, bb2, max_size = 1000):
     n = len(bb1)
     iou0 = torch.zeros((n,))
     for i in range(n):
-        im0 = torch.zeros((260, 260))
-        im1 = torch.zeros((260, 260))
+        im0 = torch.zeros((max_size, max_size))
+        im1 = torch.zeros((max_size, max_size))
         
         im0[bb1[i,0]:bb1[i,0]+bb1[i,2], bb1[i,1]:bb1[i,1]+bb1[i,3]] = 1
         im1[bb2[i,0]:bb2[i,0]+bb2[i,2], bb2[i,1]:bb2[i,1]+bb2[i,3]] = 1

@@ -5,8 +5,8 @@ Created on Sun Apr 26 09:37:11 2020
 @author: yan10
 """
 import cv2
-from matplotlib import pyplot as plt
-from mpl_toolkits.axes_grid1 import ImageGrid
+# from matplotlib import pyplot as plt
+# from mpl_toolkits.axes_grid1 import ImageGrid
 import os
 import sys
 import time
@@ -19,7 +19,7 @@ def selective_search(
         data_path: str, out_path: str, label: str = None,
         region_num: int = 2000, region_skip: int = 2,
         imsize: Union[int, Tuple] = 299,
-        min_width: int = 30, min_hight: int = 30,
+        min_width: int = 80, min_hight: int = 80,
         min_size: int = 200, max_dim_ratio: float = 4,
         to_file = True, silent = False):
     '''
@@ -36,19 +36,19 @@ def selective_search(
         the label of positive image set.
     region_num : int, optional
         Number of total region proposals to take from each image.
-        The default is 300.
+        The default is 2000.
     region_skip : int, optional
         The number of region proposals to skip for ever saved one.
-        The default is 3.
+        The default is 2.
     imsize : Union[int, Tuple], optional
         the size of the resized region proposals.
         The default is 299.
     min_width : int, optional
         the minimal output image width.
-        The default is 30.
+        The default is 80.
     min_hight : int, optional
         the minimal output image hight.
-        The default is 30.
+        The default is 80.
     min_size : int, optional
         the minimal output image size in pixels.
         The default is 200.
@@ -96,6 +96,7 @@ def selective_search(
     # count_total = len(image_names)
     # count       = 0
     # start_time  = time.time()
+    names = []
     regions = []
     bounding_boxs = []
     for image_name in tqdm(image_names, disable = silent):
@@ -132,23 +133,25 @@ def selective_search(
                 # crop, resize and save
                 crop = image[y:y+h, x:x+w]
                 region = cv2.resize(crop, imsize, interpolation = cv2.INTER_AREA)
+                file_name = f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png'
                 if to_file:
                     cv2.imwrite(
                         os.path.join(
                             out_path,
-                            f'{image_name[:-4]};{x};{y};{w};{h};{ims:04}.png',
+                            file_name,
                             ),
                         region
                         )
                 else:
-                    regions.append(torch.tensor(region))
+                    names.append(file_name)
+                    regions.append(torch.tensor(cv2.cvtColor(region, cv2.COLOR_BGR2RGB)))
                     bounding_boxs.append(torch.tensor([x,y,w,h]))
                 ims+=1            
                 skip+=1
                 if ims>=region_num:
                     break
         if not to_file:
-            return torch.stack(regions), torch.stack(bounding_boxs)
+            return names, torch.stack(regions), torch.stack(bounding_boxs)
 
         
 

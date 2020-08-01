@@ -29,12 +29,6 @@ if torch.cuda.device_count()>1:
     torch.cuda.set_device(1)
 torch.manual_seed(0)
 
-# model_name = 'inceptionresnetv2'
-# feature_extractor = pretrainedmodels.__dict__[model_name](
-#     num_classes=1000, pretrained='imagenet')
-# feature_extractor.eval()
-feature_extractor = nn.Identity()
-
 # get dataset and dataloader
 print('preparing prerequisites')
 data_path    = sys.argv[1] # '../../data/region_proposals'
@@ -159,7 +153,7 @@ wdec = WDEC(
 # activation in layers 1-2 and a softmax activation for the output layer
 # Dropout is used for the two hidden layers with probability of 0.8
 # cross-entropy loss function
-detector = SSDetector(feature_extractor, embedded_dim)
+detector = SSDetector(embedded_dim)
 
 if cuda:
     wdec.cuda()
