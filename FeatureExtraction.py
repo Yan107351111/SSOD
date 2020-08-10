@@ -38,7 +38,7 @@ feature_extractor.eval()
 del inception_resnet_v2_children, inception_resnet_v2
 
 cuda = torch.cuda.is_available
-device = 'cuda' if cuda else 'cpu'
+device =  'cpu' # 'cuda' if cuda else
 
 def get_embedded_dim(in_shape: tuple = (3,299,299)):
     _in = torch.rand(1, *in_shape)
@@ -356,7 +356,7 @@ def get_dataset_transformed_from_file(data_path, label, sample = -1):
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=500,
         shuffle=True, num_workers=4)
-    tensors = []z
+    tensors = []
     if cuda:
         feature_extractor.cuda()
     for ii, batch in enumerate(tqdm(train_dataloader, desc = 'extracting features:')):
