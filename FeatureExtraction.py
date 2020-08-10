@@ -38,7 +38,7 @@ feature_extractor.eval()
 del inception_resnet_v2_children, inception_resnet_v2
 
 cuda = torch.cuda.is_available
-device =  'cpu' # 'cuda' if cuda else
+device = 'cuda' if cuda else 'cpu'
 
 def get_embedded_dim(in_shape: tuple = (3,299,299)):
     _in = torch.rand(1, *in_shape)
@@ -376,27 +376,25 @@ def get_dataset_transformed_from_file(data_path, label, sample = -1):
     return train_dataset
 
 class TransDataset(Dataset):
-    def __init__(self, tensors, transforms = None):
+    def __init__(self, data, transforms = None):
         super().__init__()
-        self.tensors = tensors
+        self.data = data
         self.transforms = transforms
     def __len__(self,):
-        return len(self.tensors)
+        return len(self.data)
     def __getitem__(self, index):
         if self.transforms is not None:
-            x = self.transforms(self.tensors[index].float())
+            x = self.transforms(self.data[index])
             return (x,)
         else:
-            return (self.tensors[index],)
+            return (self.data[index],)
 
 def get_dataset_transformed(
-        data_path, label, 
+        data_paths, label, silent = True,
         embedded_dim = get_embedded_dim(), sample = -1):
-    positives = ['positive'] + os.listdir(os.path.join(data_path, 'positive'))
-    negatives = ['negative'] + os.listdir(os.path.join(data_path, 'negative')) 
     cuda = torch.cuda.is_available()
     transform = T.Compose(
-            [lambda x: x.permute(2,0,1),
+            [T.ToTensor(),
              T.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
              ])
@@ -405,65 +403,50 @@ def get_dataset_transformed(
     all_items = []
     all_bounding_boxes = []
     all_features = []
-    for sentiment in [positives, negatives]:
-        for image in sentiment[1:]:
-            image_path = os.path.join(data_path, sentiment[0], image)
-            names, regions, _ = selective_search(
-                image_path, None, None,
-                to_file = False, silent = True
-            )
-            #for i in range(100, 110):
-            #    plt.figure()
-            #    plt.imshow(regions[i])
-            #    plt.title(names[i])
-            #    plt.show()
-            #raise
-            all_items += names
-            #all_bounding_boxes.append(bounding_boxes)
+    
+    for data_path in data_paths:
+        for item in tqdm(os.listdir(data_path), desc = data_path, disable = silent):
+            
+            out = open('proccessed.txt', 'a')
+            out.write(item)
+            out.write('\n')
+            out.close()
+            
+            image_path = os.path.join(data_path, item)
+            try:
+                names, regions, _ = selective_search(
+                    image_path, None, None,
+                    to_file = False, silent = True
+                )
+            except:
+                out = open('proccessed.txt', 'a')
+                out.write('#################### ERROR ####################\n')
+                out.write(f'error in selective search for image\n{image_path}\n')
+                out.write('#################### ERROR ####################\n')
+                out.write('\n')
+                out.close()
+                print(f'error in selective search for image {image_path}')
+                continue
+            
+            all_items = all_items+names
             ds = TransDataset(regions, transforms = transform)
             dl = DataLoader(ds, batch_size = 512)
-            
             
             for regions, in dl:
                 with torch.no_grad():
                     regions = regions.to(device)
                     all_features.append(
                         feature_extractor(regions).reshape(-1,embedded_dim)
-                    )
+                )
     all_items = [os.path.split(item)[1] for item in all_items]
     all_features = torch.cat(all_features)
     
-    #all_bounding_boxes = torch.cat(all_bounding_boxes)
-    
+    out = open('proccessed.txt', 'a')
+    out.write('DONE')
+    out.write('\n\n\n')
+    out.close()
+   
     dataset = FrameRegionProposalsDataset.from_ss(label, all_items, all_features,)
-    
-            
-    '''        
-    train_dataset = FrameRegionProposalsDataset(
-        root_dir  = data_path,
-        label     = label,
-        transform = transform,
-    )
-    train_dataset.output = 1
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=500,
-        shuffle=True, num_workers=4)
-    tensors = []
-    if cuda:
-        feature_extractor.cuda()
-    for ii, batch in enumerate(tqdm(train_dataloader, desc = 'extracting features:')):
-        if cuda:
-            batch = batch.cuda()
-        with torch.no_grad():
-             tensors.append(feature_extractor(batch).cpu().squeeze())
-        if ii == sample-1:
-            break
-    tensors = torch.cat(tensors)
-    # print(tensors.shape)
-    train_dataset.tensors = tensors
-    train_dataset._transformed = True 
-    train_dataset.output = 6
-    '''
     feature_extractor.cpu()
     return dataset
 
@@ -634,10 +617,7 @@ class FramesDataset(Dataset):
     
     
     
-    
-    
-    
-    
+
     
     
     

@@ -27,7 +27,7 @@ class TransDataset(Dataset):
         return len(self.tensors)
     def __getitem__(self, index):
         if self.transforms is not None:
-            x = self.transforms(self.tensors[index].float())
+            x = self.transforms(self.tensors[index]).float()
             return (x,)
         return (self.tensors[index],)
 from torch.utils.data import TensorDataset, DataLoader
@@ -72,7 +72,7 @@ def detect(detector, image_path, device = 'cpu', cheat = None):
         return bounding_boxes[prediction], torch.tensor([0, 1.1])
     
     transform = T.Compose(
-            [lambda x: x.permute(2,0,1),
+            [T.ToTensor(),
              T.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
              ])
@@ -135,34 +135,31 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.5, device = 'cpu
             gt = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]]).cuda()
             ious.append(get_iou(bounding_box, gt.reshape(1,-1)))
         iou = max(ious)
-        print(f'probability = {probability}')
-        print(f'{image} iou: {iou}')
+        #print(f'probability = {probability}')
+        #print(f'{image} iou: {iou}')
         IOUs.append(iou>threshold) 
     
     return torch.mean(torch.stack(IOUs).float())
 
 
 if __name__ =='__main__':
-    detector_path = sys.argv[1]#'../20200622_horse_fs/20200720/detector.p'  #
-    data_path = sys.argv[2]#'../datasets/dataset_horse_2020_06_08/positive/'#
-    ground_truth_path = sys.argv[3]#'horse_bb_dict.p'#
+    detector_path = 'detector.p' # sys.argv[1]#'../20200622_horse_fs/20200720/detector.p'  #
+    data_path = '/tcmldrive/Yann/datasets/horse_2020_08_03/fold_0/positive_valid/' # sys.argv[2]#'../datasets/dataset_horse_2020_06_08/positive/'#
+    ground_truth_path  = '../../SSOD/horse_bb_dict.p'#'horse_bb_dict.p'#
     device = 'cuda'
     
     feature_extractor.to(device)
     
     # print('\nunpacking model\n')
-    detector = torch.load(detector_path).to(device)
+    detector = pickle.load(open(detector_path, 'rb')).to(device)
     detector.eval()
     detector.train(False)
     # detector = torch.load(detector_path).to(device)
 
     start_time = time.time()
-    temperaturs = [1]
-    results = dict()
-    for temp in temperaturs:
-        results[temp] = evaluate(
-            detector, data_path, ground_truth_path,
-            device = device, SMT = temp) 
+    results = evaluate(
+        detector, data_path, ground_truth_path,
+        device = device,) 
     
     print(results)
     

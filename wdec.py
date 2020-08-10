@@ -175,7 +175,7 @@ def PositiveRatioClusters(
     c_sizes   = c_rep.sum(-1)
     cp_rep    = c_rep*actual.repeat((K,1))
     cp_sizes  = cp_rep.sum(-1)
-    cp_freq   = cp_sizes/c_sizes
+    cp_freq   = cp_sizes.float()/c_sizes.float()
     # tensor [Clusters]. 1 if the cluster is a positive ratio cluster
     # and 0 otherwise.
     return cp_freq

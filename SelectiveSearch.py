@@ -144,14 +144,14 @@ def selective_search(
                         )
                 else:
                     names.append(file_name)
-                    regions.append(torch.tensor(cv2.cvtColor(region, cv2.COLOR_BGR2RGB)))
+                    regions.append(cv2.cvtColor(region, cv2.COLOR_BGR2RGB))
                     bounding_boxs.append(torch.tensor([x,y,w,h]))
                 ims+=1            
                 skip+=1
                 if ims>=region_num:
                     break
         if not to_file:
-            return names, torch.stack(regions), torch.stack(bounding_boxs)
+            return names, regions, torch.stack(bounding_boxs)
 
         
 

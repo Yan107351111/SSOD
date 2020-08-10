@@ -266,7 +266,10 @@ class DetectorTrainer(Trainer):
         return super().test_epoch(dl_test, **kw,)
 
     def train_batch(self, batch, **kw) -> BatchResult:
-        x, y, idx = batch
+        if 'train_time_testing' in list(kw):
+            x, y, idx = batch
+        else: 
+            x, y, = batch
         x    = x.to(self.device, dtype=torch.float,)  
         y    = y.to(self.device, dtype=torch.float,)
         
@@ -277,8 +280,9 @@ class DetectorTrainer(Trainer):
         y_hat = self.model(x,)
         
         #print(y_hat)
+        if 'train_time_testing' in list(kw):
+            self.model.train_labels[idx] = torch.argmax(y_hat.clone().detach().cpu(), -1).float()
         
-        self.model.train_labels[idx] = torch.argmax(y_hat.clone().detach().cpu(), -1).float()
         # print('\n\n\n')
         # print(f'y.shape = {y.shape}')
         # print('\n\n\n')
@@ -298,7 +302,10 @@ class DetectorTrainer(Trainer):
 
 
     def test_batch(self, batch, **kw,) -> BatchResult:
-        x, y, idx = batch
+        if 'train_time_testing' in list(kw):
+            x, y, idx = batch
+        else: 
+            x, y, = batch
         x = x.to(self.device, dtype=torch.float,)
         y = y.to(self.device, dtype=torch.float,) 
 
@@ -306,7 +313,8 @@ class DetectorTrainer(Trainer):
             if self.backbone is not None:
                 x = self.backbone(x)
             y_hat = self.model(x,)
-            self.model.test_labels[idx] = torch.argmax(y_hat.clone().detach().cpu(), -1).float()
+            if 'train_time_testing' in list(kw):
+                self.model.test_labels[idx] = torch.argmax(y_hat.clone().detach().cpu(), -1).float()
             loss  = self.loss_fn(y_hat, y,)
             y_pred      = torch.argmax(y_hat, dim = -1)
             num_correct = torch.sum(y==y_pred)
