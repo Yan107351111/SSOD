@@ -11,16 +11,19 @@ from matplotlib import pyplot as plt
 import os
 import pickle
 import pretrainedmodels
+from SelectiveSearch import selective_search
+import shutil
 import sys
 import time
 import torch
 from torch import nn 
 import torchvision
 import torchvision.transforms as T
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision.datasets import DatasetFolder
 from tqdm import tqdm
 from typing import NamedTuple, List
+
 
 
 model_name = 'inceptionresnetv2'
@@ -34,6 +37,9 @@ feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])
 feature_extractor.eval()
 del inception_resnet_v2_children, inception_resnet_v2
 
+cuda = torch.cuda.is_available
+device = 'cuda' if cuda else 'cpu'
+
 def get_embedded_dim(in_shape: tuple = (3,299,299)):
     _in = torch.rand(1, *in_shape)
     _out = feature_extractor(_in)
@@ -45,7 +51,7 @@ class FrameRegionProposalsDataset(Dataset):
     def __init__(self, 
             root_dir, label, 
             transform = None, 
-            output = 6, random_seed = 0, _construct = True
+            output = 6, random_seed = 0, _construct = True,
             ):
         '''
         TODO:
@@ -77,54 +83,33 @@ class FrameRegionProposalsDataset(Dataset):
         self.transform    = transform
         self.label        = label
         self.output       = output
-        self.video_ref    = {}
-        self.video_deref  = {}
-        self.all_items    = []
+        self.all_items    = os.listdir(root_dir)        
+        self._create_mapings()
         
-        # assert label in os.listdir(root_dir), f'folder {label} not found in the root directory'
-
-        # creating positive item list
+    def _create_mapings(self,):
+        self.video_ref    = {}
+        self.video_deref  = {}    
         video_hash = 0
-        for i in tqdm(os.listdir(os.path.join(root_dir)), desc = 'Sample collection:'):
-            img_path = os.path.join(i)
-            self.all_items.append(img_path)
+        for i in self.all_items:
             video_name = i.split(';')[1]
             if video_name not in list(self.video_ref):
                 self.video_ref[video_name]   = video_hash
                 self.video_deref[video_hash] = video_name
-                video_hash += 1
-        ''' 
-        # addign negative items to the list
-        other_labels = [olabel for olabel in os.listdir(root_dir)
-                        if olabel is not label]
-        regions_dict = {}
-        for other_label in other_labels:
-            regions_dict[other_label] = os.listdir(os.path.join(root_dir,other_label))
-        neg_labels   = torch.randint(len(other_labels), (len(self.all_items),))
-        for neg_label in tqdm(neg_labels, desc = 'Negative sample collection:'):
-            other_label     = other_labels[neg_label]
-            neg_region_ind  = torch.randint(len(regions_dict[other_label]), (1,))
-            neg_region_name = regions_dict[other_label][neg_region_ind]
-            video_name = neg_region_name.split(';')[1]
-            neg_region_name = os.path.join(
-                    other_label,
-                    neg_region_name)
-            while neg_region_name in self.all_items:
-                neg_label       = torch.randint(len(other_labels), (1,))
-                other_label     = other_labels[neg_label]
-                neg_region_ind  = torch.randint(len(regions_dict[other_label]), (1,))
-                neg_region_name = regions_dict[other_label][neg_region_ind]
-                video_name = neg_region_name.split(';')[1]
-                neg_region_name = os.path.join(
-                    other_label,
-                    neg_region_name)
-            self.all_items.append(neg_region_name)
-            if video_name not in list(self.video_ref):
-                self.video_ref[video_name] = video_hash
-                self.video_deref[video_hash] = video_name
-                video_hash+=1
-          '''  
+                video_hash += 1    
         
+    @classmethod
+    def from_ss(cls, label, all_items, features,):
+        dupe = cls(None, None, _construct = False) 
+        dupe._fully_supervised = False
+        dupe._transformed = True
+        dupe.root_dir     = None
+        dupe.transform    = None
+        dupe.label        = label
+        dupe.output       = 6
+        dupe.all_items    = all_items
+        dupe.tensors      = features
+        dupe._create_mapings()
+        return dupe
 
     def __len__(self):
         if self._transformed: return len(self.tensors)
@@ -134,10 +119,10 @@ class FrameRegionProposalsDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        if self._fully_supervised:
-            image = self.tensors[idx]
-            label = self.true_labels[idx]
-            return image, label 
+        #if self._fully_supervised:
+        #    image = self.tensors[idx]
+        #    label = self.true_labels[idx]
+        #    return image, label 
         
         item = self.all_items[idx]
         if not self._transformed:
@@ -151,6 +136,10 @@ class FrameRegionProposalsDataset(Dataset):
         video    = torch.tensor(self.video_ref[os.path.split(item)[1].split(';')[1]])
         box      = torch.tensor([int(i) for i in item.split(';')[3:7]])
         frame    = torch.tensor(int(item.split(';')[2]))
+        
+        if self._fully_supervised:
+            label = self.true_labels[idx]
+        idx = torch.tensor(idx)
         # if self.transform:
         #     with torch.no_grad():
         #         features = self.transform(image)
@@ -229,7 +218,7 @@ class FrameRegionProposalsDataset(Dataset):
             tensors.append(pickle.load(open(frag_name, 'rb')))
         self.tensors = torch.cat(tensors)
         
-    def add_full_supervision(self, bb_dict: dict, iou_threshold: float = 0.5):
+    def add_full_supervision(self, bb_dict: dict, iou_threshold: float = 0.5, true_cp: bool = False, true_cp_dest: str = '.', selection_method: str = 'threshold', K: int = 5, ):
         '''
         
 
@@ -248,7 +237,9 @@ class FrameRegionProposalsDataset(Dataset):
         None.
 
         '''
+        true_regions = []
         self.true_labels = torch.zeros((len(self.all_items)))
+                
         for ii, item in enumerate(self.all_items):
             lebel = item.split(';')[0]
             video = os.path.split(item)[1].split(';')[1]
@@ -262,8 +253,14 @@ class FrameRegionProposalsDataset(Dataset):
                     gt = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]]).cuda()
                     if get_iou(box.reshape(1,-1).cpu().float(), gt.reshape(1,-1).cpu().float()) > iou_threshold:
                         self.true_labels[ii] = 1
+                        true_regions.append(item)
         self._fully_supervised = True
         self.output = 2
+        if true_cp:
+            for item in true_regions:
+                shutil.copyfile(os.path.join(self.root_dir, item), os.path.join(true_cp_dest, item))
+            
+
         
 def get_dataloader(data_path, batch_size, label):
     '''
@@ -310,7 +307,7 @@ def to4D(tensor):
         return tensor.unsqueeze(0)
     if len(tensor.shape)==2:
         return tensor.unsqueeze(0).unsqueeze(0)
-  
+'''  
 class extract_features():
     def __init__(self,):
         model_name = 'inceptionresnetv2'
@@ -327,8 +324,23 @@ class extract_features():
             tensor = tensor.cpu()
         with torch.no_grad():
             return self.model()
+'''
 
-def get_dataset(data_path, label,):
+def get_dataset(data_path, label, sample = -1):
+    transform = T.Compose(
+            [T.ToTensor(),
+             T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+             ])
+    train_dataset = FrameRegionProposalsDataset(
+        root_dir  = data_path,
+        label     = label,
+        transform = transform,
+    )
+    train_dataset.output = 2
+    return train_dataset
+
+def get_dataset_transformed_from_file(data_path, label, sample = -1):
     cuda = torch.cuda.is_available()
     transform = T.Compose(
             [T.ToTensor(),
@@ -342,7 +354,7 @@ def get_dataset(data_path, label,):
     )
     train_dataset.output = 1
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=1500,
+        train_dataset, batch_size=500,
         shuffle=True, num_workers=4)
     tensors = []
     if cuda:
@@ -352,9 +364,10 @@ def get_dataset(data_path, label,):
             batch = batch.cuda()
         with torch.no_grad():
              tensors.append(feature_extractor(batch).cpu().squeeze())
-        break
+        if ii == sample-1:
+            break
     tensors = torch.cat(tensors)
-    print(tensors.shape)
+    # print(tensors.shape)
     train_dataset.tensors = tensors
     train_dataset._transformed = True 
     train_dataset.output = 6
@@ -362,6 +375,80 @@ def get_dataset(data_path, label,):
     feature_extractor.cpu()
     return train_dataset
 
+class TransDataset(Dataset):
+    def __init__(self, data, transforms = None):
+        super().__init__()
+        self.data = data
+        self.transforms = transforms
+    def __len__(self,):
+        return len(self.data)
+    def __getitem__(self, index):
+        if self.transforms is not None:
+            x = self.transforms(self.data[index])
+            return (x,)
+        else:
+            return (self.data[index],)
+
+def get_dataset_transformed(
+        data_paths, label, silent = True,
+        embedded_dim = get_embedded_dim(), sample = -1):
+    cuda = torch.cuda.is_available()
+    transform = T.Compose(
+            [T.ToTensor(),
+             T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+             ])
+    
+    feature_extractor.to(device)
+    all_items = []
+    all_bounding_boxes = []
+    all_features = []
+    
+    for data_path in data_paths:
+        for item in tqdm(os.listdir(data_path), desc = data_path, disable = silent):
+            
+            out = open('proccessed.txt', 'a')
+            out.write(item)
+            out.write('\n')
+            out.close()
+            
+            image_path = os.path.join(data_path, item)
+            try:
+                names, regions, _ = selective_search(
+                    image_path, None, None,
+                    to_file = False, silent = True
+                )
+            except:
+                out = open('proccessed.txt', 'a')
+                out.write('#################### ERROR ####################\n')
+                out.write(f'error in selective search for image\n{image_path}\n')
+                out.write('#################### ERROR ####################\n')
+                out.write('\n')
+                out.close()
+                print(f'error in selective search for image {image_path}')
+                continue
+            
+            all_items = all_items+names
+            ds = TransDataset(regions, transforms = transform)
+            dl = DataLoader(ds, batch_size = 512)
+            
+            for regions, in dl:
+                with torch.no_grad():
+                    regions = regions.to(device)
+                    all_features.append(
+                        feature_extractor(regions).reshape(-1,embedded_dim)
+                )
+    all_items = [os.path.split(item)[1] for item in all_items]
+    all_features = torch.cat(all_features)
+    
+    out = open('proccessed.txt', 'a')
+    out.write('DONE')
+    out.write('\n\n\n')
+    out.close()
+   
+    dataset = FrameRegionProposalsDataset.from_ss(label, all_items, all_features,)
+    feature_extractor.cpu()
+    return dataset
 
 
 if __name__ == '__main__':
@@ -530,10 +617,7 @@ class FramesDataset(Dataset):
     
     
     
-    
-    
-    
-    
+
     
     
     

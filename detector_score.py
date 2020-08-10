@@ -27,7 +27,7 @@ class TransDataset(Dataset):
         return len(self.tensors)
     def __getitem__(self, index):
         if self.transforms is not None:
-            x = self.transforms(self.tensors[index].float())
+            x = self.transforms(self.tensors[index]).float()
             return (x,)
         return (self.tensors[index],)
 from torch.utils.data import TensorDataset, DataLoader
@@ -44,17 +44,35 @@ except:
     inception_resnet_v2 = pretrainedmodels.__dict__[model_name](
         num_classes=1000, pretrained='imagenet')
 inception_resnet_v2_children = [child for child in inception_resnet_v2.children()]
-feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])
+feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])#[:-2], nn.Flatten())
 feature_extractor.eval()
 del inception_resnet_v2_children, inception_resnet_v2
 
+def get_embedded_dim(in_shape: tuple = (3,299,299)):
+    _in = torch.rand(1, *in_shape)
+    _out = feature_extractor(_in)
+    return _out.shape[1]
 
-def detect(detector, image_path, device = 'cpu'):
+embedded_dim = get_embedded_dim()
+
+def detect(detector, image_path, device = 'cpu', cheat = None):
+    torch.manual_seed(0)
     # print('\nproposing regions\n')
     # print(f'\n@ {time.time() - start_time}\n')
-    regions, bounding_boxes = selective_search(image_path, None, None, to_file = False, silent = True)
+    _, regions, bounding_boxes = selective_search(image_path, None, None, to_file = False, silent = True)
+    
+    if cheat is not None:
+        gt_  = cheat
+        gt   = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]])
+        gt   = gt.repeat(len(bounding_boxes), 1)
+        ious = get_iou(bounding_boxes.cuda().float(), gt.cuda().float())
+        #print(ious)
+        #raise
+        prediction = torch.argmax(ious)
+        return bounding_boxes[prediction], torch.tensor([0, 1.1])
+    
     transform = T.Compose(
-            [lambda x: x.permute(2,0,1),
+            [T.ToTensor(),
              T.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
              ])
@@ -63,13 +81,14 @@ def detect(detector, image_path, device = 'cpu'):
     features = []
     # print('\nextraction region features\n')
     # print(f'\n@ {time.time() - start_time}\n')
+    feature_extractor.to(device)
     for regions, in dl:
         with torch.no_grad():
             # print(regions)
             #print('\nrunning through feature_extractor\n')
             #print(f'\n@ {time.time() - start_time}\n')
             regions = regions.to(device)
-            features.append(feature_extractor(regions).reshape(-1,1536))
+            features.append(feature_extractor(regions).reshape(-1,embedded_dim))
     try: features = torch.cat(features)
     except: 
         print(features[0].shape, features[-1].shape)
@@ -85,10 +104,10 @@ def detect(detector, image_path, device = 'cpu'):
             predictions.append(detector(feature))
     predictions = torch.cat(predictions)
     prediction  = torch.argmax(predictions[:,1])
-    return bounding_boxes[prediction]
+    return bounding_boxes[prediction], nn.functional.softmax(predictions[prediction,:])
 
 
-def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu', time_dict = None, SMT = 1):
+def evaluate(model, data_path, ground_truth_path, threshold = 0.5, device = 'cpu', time_dict = None, SMT = 1):
     model._activate = False
     images = [i for i in os.listdir(data_path)
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]
@@ -106,7 +125,8 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu
         image_path = os.path.join(data_path, image)
         # print('\nperforming detection\n')
         # print(f'\n@ {time.time() - start_time}\n')
-        bounding_box = detect(model, image_path, device = device).reshape(1, -1).to(device).float()
+        bounding_box, probability = detect(model, image_path, device = device)#, cheat = ground_truths[0])
+        bounding_box = bounding_box.reshape(1, -1).to(device).float()
         # print('\ncomputing IOU\n')
         # print(f'\n@ {time.time() - start_time}\n')
         # print(bounding_box)
@@ -115,41 +135,36 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.3, device = 'cpu
             gt = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]]).cuda()
             ious.append(get_iou(bounding_box, gt.reshape(1,-1)))
         iou = max(ious)
+        #print(f'probability = {probability}')
+        #print(f'{image} iou: {iou}')
         IOUs.append(iou>threshold) 
     
     return torch.mean(torch.stack(IOUs).float())
 
 
 if __name__ =='__main__':
-    detector_path = sys.argv[1]
-    data_path = sys.argv[2]
-    ground_truth_path = sys.argv[3]
+    detector_path = 'detector.p' # sys.argv[1]#'../20200622_horse_fs/20200720/detector.p'  #
+    data_path = '/tcmldrive/Yann/datasets/horse_2020_08_03/fold_0/positive_valid/' # sys.argv[2]#'../datasets/dataset_horse_2020_06_08/positive/'#
+    ground_truth_path  = '../../SSOD/horse_bb_dict.p'#'horse_bb_dict.p'#
     device = 'cuda'
     
     feature_extractor.to(device)
     
     # print('\nunpacking model\n')
-    # detector = pickle.load(open(detector_path, 'rb')).to(device)
-    detector = torch.load(detector_path)
+    detector = pickle.load(open(detector_path, 'rb')).to(device)
+    detector.eval()
+    detector.train(False)
+    # detector = torch.load(detector_path).to(device)
 
     start_time = time.time()
-    temperaturs = [1]
-    results = dict()
-    for temp in temperaturs:
-        results[temp] = evaluate(
-            detector, data_path, ground_truth_path,
-            device = device, SMT = temp) 
+    results = evaluate(
+        detector, data_path, ground_truth_path,
+        device = device,) 
     
     print(results)
     
     
     
-
-        
-    
-
-
-
 
 
 

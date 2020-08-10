@@ -91,7 +91,6 @@ def train(dataset: torch.utils.data.Dataset,
                 output = autoencoder(F.dropout(batch, corruption))
             else:
                 output = autoencoder(batch)
-            batch = autoencoder.feature_extractor(batch)
             loss = loss_function(output, batch)
             # accuracy = pretrain_accuracy(output, batch)
             loss_value = float(loss.item())
@@ -192,13 +191,12 @@ def pretrain(dataset,
         encoder, decoder = autoencoder.get_stack(index)
         embedding_dimension = autoencoder.dimensions[index]
         hidden_dimension = autoencoder.dimensions[index + 1]
-        feature_extractor = autoencoder.feature_extractor
+        
         # manual override to prevent corruption for the last subautoencoder
         if index == (number_of_subautoencoders - 1):
             corruption = None
         # initialise the subautoencoder
         sub_autoencoder = DenoisingAutoencoder(
-            feature_extractor = feature_extractor ,
             embedding_dimension=embedding_dimension,
             hidden_dimension=hidden_dimension,
             activation=torch.nn.ReLU() if index != (number_of_subautoencoders - 1) else None,
