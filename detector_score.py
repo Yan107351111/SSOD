@@ -143,25 +143,34 @@ def evaluate(model, data_path, ground_truth_path, threshold = 0.5, device = 'cpu
 
 
 if __name__ =='__main__':
-    detector_path = 'detector.p' # sys.argv[1]#'../20200622_horse_fs/20200720/detector.p'  #
-    data_path = '/tcmldrive/Yann/datasets/horse_2020_08_03/fold_0/positive_valid/' # sys.argv[2]#'../datasets/dataset_horse_2020_06_08/positive/'#
-    ground_truth_path  = '../../SSOD/horse_bb_dict.p'#'horse_bb_dict.p'#
-    device = 'cuda'
+    K = 5
+    label = 'dog'
+    results = torch.ones(K, dtype = float)*(-1.)
+    for fold in range(K):
+        print(f'Proccessing fold {fold}:\n')
+        detector_path = f'detector_F{fold}.p' # sys.argv[1]#'../20200622_horse_fs/20200720/detector.p'  #
+        data_path = f'/tcmldrive/Yann/datasets/dog_2020_08_05/fold_{fold}/positive_valid/' # f'/tcmldrive/Yann/datasets/bike_2020_08_10/fold_{fold}/positive_train/' #  # sys.argv[2]#'../datasets/dataset_horse_2020_06_08/positive/'#
+        ground_truth_path  = f'../../SSOD/{label}_bb_dict.p'#'horse_bb_dict.p'#
+        device = 'cuda'
+        
+        feature_extractor.to(device)
+        
+        # print('\nunpacking model\n')
+        detector = pickle.load(open(detector_path, 'rb')).to(device)
+        detector.eval()
+        detector.train(False)
+        # detector = torch.load(detector_path).to(device)
     
-    feature_extractor.to(device)
-    
-    # print('\nunpacking model\n')
-    detector = pickle.load(open(detector_path, 'rb')).to(device)
-    detector.eval()
-    detector.train(False)
-    # detector = torch.load(detector_path).to(device)
-
-    start_time = time.time()
-    results = evaluate(
-        detector, data_path, ground_truth_path,
-        device = device,) 
-    
-    print(results)
+        start_time = time.time()
+        result = evaluate(
+            detector, data_path, ground_truth_path,
+            device = device,) 
+        print('')
+        print(result)
+        print('\n')
+        results[fold] = result
+    print(f'results: \n{results}\n')
+    print(f'mean: \n{torch.mean(results)}\n')
     
     
     

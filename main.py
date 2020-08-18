@@ -37,14 +37,14 @@ torch.manual_seed(0)
 print('working')
 
 
-for fold in range(5):
+for fold in range(4, 5):
     # get dataset and dataloader
     print(f'Running fold: {fold}', flush=True)
     print('preparing prerequisites', flush=True)
     fold_path    = f'/tcmldrive/Yann/datasets/dog_2020_08_05/fold_{fold}/' # f'/tcmldrive/Yann/datasets/horse_2020_08_03/fold_{fold}/'# sys.argv[1] # '../../data/region_proposals'
     batch_size   = 400
     batch_num    = 1000
-    label        = 'dog' # 'horse' # sys.argv[2] # 'bike'
+    label        = 'dog' # 'bike' # 'horse' # sys.argv[2] # 
     autoencoder_path = f'autoencoder_F{fold}.p'
     wdec_path        = f'wdec_F{fold}.p'  
     detector_path    = f'detector_F{fold}.p' 

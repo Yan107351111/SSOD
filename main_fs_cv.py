@@ -43,7 +43,7 @@ del inception_resnet_v2_children, inception_resnet_v2
 #%%
 # get dataset and dataloader
 print('preparing prerequisites')
-data_path     = '../../datasets/bike_2020_08_09' # '../../datasets/dog_2020_08_05' # '../../datasets/horse_2020_08_03' 
+data_path     = '../../datasets/bike_2020_08_10' # '../../datasets/dog_2020_08_05' # '../../datasets/horse_2020_08_03' 
 folds_K       = 5
 batch_size    = 400
 batch_num     = 1000
@@ -169,8 +169,10 @@ for fold in range(folds_K):
     ds_valid.output = 6
     detector.cuda()
     image_dict = {}
+    
     for image_name in os.listdir(image_source):
         image_dict[image_name] = []
+        
     for ii in tqdm(range(len(ds_train)), desc = 'processing images'):
         image, lable, idx, box, video, frame = ds_train[ii]
         positive_name = f'{label};{ds_train.video_deref[video.item()]};{frame:04}.png'
