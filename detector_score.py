@@ -15,28 +15,33 @@ import sys
 import time
 import torch
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, TensorDataset
 import torchvision.transforms as T
+from tqdm import tqdm
+from typing import List, Optional
 
 class TransDataset(Dataset):
-    def __init__(self, tensors, transforms = None):
+    '''
+    Dataset class. Same as the Tensot Dataset, but supports transformes.
+    '''
+    def __init__(self, tensors: List[torch.Tensor], transforms: Optional[object] = None):
         super().__init__()
         self.tensors = tensors
         self.transforms = transforms
+    
     def __len__(self,):
         return len(self.tensors)
+    
     def __getitem__(self, index):
         if self.transforms is not None:
             x = self.transforms(self.tensors[index]).float()
             return (x,)
         return (self.tensors[index],)
-from torch.utils.data import TensorDataset, DataLoader
-from tqdm import tqdm
-from DSD import get_iou
 
 if torch.cuda.device_count()>1:
     torch.cuda.set_device(1)
 
+# load feature extraction backbone.
 model_name = 'inceptionresnetv2'
 try:
     inception_resnet_v2 = pickle.load(open('../'+model_name+'.p', 'rb'))
@@ -48,29 +53,53 @@ feature_extractor = nn.Sequential(*inception_resnet_v2_children[:-1])#[:-2], nn.
 feature_extractor.eval()
 del inception_resnet_v2_children, inception_resnet_v2
 
+
 def get_embedded_dim(in_shape: tuple = (3,299,299)):
+    '''
+    Retrive the dimention of the embedded space.
+
+    Parameters
+    ----------
+    in_shape : tuple, optional
+        DESCRIPTION. The default is (3,299,299).
+
+    Returns
+    -------
+    int.
+        The dimention of the output embedding.
+    '''
     _in = torch.rand(1, *in_shape)
     _out = feature_extractor(_in)
     return _out.shape[1]
 
 embedded_dim = get_embedded_dim()
 
-def detect(detector, image_path, device = 'cpu', cheat = None):
+def detect(detector: nn.Module, image_path: str, device: str = 'cpu'):
+    '''
+    Apply the detector on all the images in the image_path.
+
+    Parameters
+    ----------
+    detector : nn.Module
+        The region classifier.
+    image_path : str
+        Path to input images.
+    device : str, optional
+        Device to use for inference. The default is 'cpu'.
+
+    Returns
+    -------
+    Tuple[bounding box, P(C=1|r)]
+        the bounding box of the highest confidence region and the probability 
+        the region (r) contains the object (C=1).
+    '''
     torch.manual_seed(0)
     # print('\nproposing regions\n')
     # print(f'\n@ {time.time() - start_time}\n')
+    # Retriving ROIs using selective_search
     _, regions, bounding_boxes = selective_search(image_path, None, None, to_file = False, silent = True)
     
-    if cheat is not None:
-        gt_  = cheat
-        gt   = torch.tensor([gt_[0], gt_[1], gt_[2]-gt_[0], gt_[3]-gt_[1]])
-        gt   = gt.repeat(len(bounding_boxes), 1)
-        ious = get_iou(bounding_boxes.cuda().float(), gt.cuda().float())
-        #print(ious)
-        #raise
-        prediction = torch.argmax(ious)
-        return bounding_boxes[prediction], torch.tensor([0, 1.1])
-    
+    # forming data containers for feature extraction.
     transform = T.Compose(
             [T.ToTensor(),
              T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -78,6 +107,8 @@ def detect(detector, image_path, device = 'cpu', cheat = None):
              ])
     ds = TransDataset(regions, transforms = transform)
     dl = DataLoader(ds, batch_size = 512)
+    
+    # transforming ROIs to feature vectors.
     features = []
     # print('\nextraction region features\n')
     # print(f'\n@ {time.time() - start_time}\n')
@@ -89,12 +120,13 @@ def detect(detector, image_path, device = 'cpu', cheat = None):
             #print(f'\n@ {time.time() - start_time}\n')
             regions = regions.to(device)
             features.append(feature_extractor(regions).reshape(-1,embedded_dim))
-    try: features = torch.cat(features)
-    except: 
-        print(features[0].shape, features[-1].shape)
-        features = torch.cat(features)
+    features = torch.cat(features)
+    
+    # forming data containers for classification.
     ds = TensorDataset(features)
     dl = DataLoader(ds, batch_size = 512)
+    
+    # classifing regions.
     predictions = []
     # print('\nclassifing regions\n')
     # print(f'\n@ {time.time() - start_time}\n')
@@ -107,7 +139,8 @@ def detect(detector, image_path, device = 'cpu', cheat = None):
     return bounding_boxes[prediction], nn.functional.softmax(predictions[prediction,:])
 
 
-def evaluate(model, data_path, ground_truth_path, threshold = 0.5, device = 'cpu', time_dict = None, SMT = 1):
+def evaluate(model, data_path, ground_truth_path, threshold = 0.5, device = 'cpu'):
+    # deactivating classifier output activation to prevent loss of confidense information.
     model._activate = False
     images = [i for i in os.listdir(data_path)
               if i.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp',))]
